@@ -33,30 +33,30 @@ type Status struct {
 
 // New returns the Status of the Git working tree 'dir'.
 func New(dir string) (*Status, error) {
-	cmd := exec.Command("git", "status", "-uall", "--porcelain=2", "--branch")
+	cmd := exec.Command("git", "status", "-uall", "--porcelain=2", "--branch", dir)
 	cmd.Env = append(cmd.Env, "LC_ALL=C")
-	//out, err := cmd.Output()
 	out, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("can't read command output: %s", err)
+		return nil, errors.Wrap(err, "can't run git status")
 	}
-	defer out.Close()
+
+	err = cmd.Start()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't run git status")
+	}
 
 	st := &Status{}
 	err = st.parsePorcelain(out)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't parse git status: %s", err)
+		return nil, errors.Wrap(err, "can't parse git status")
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't run git status")
 	}
 
 	return st, nil
-}
-
-func split(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	advance, token, err = bufio.ScanWords(data, atEOF)
-	if err == nil && token != nil && bytes.Equal(token, []byte{'e', 'n', 'd'}) {
-		return 0, []byte{'E', 'N', 'D'}, bufio.ErrFinalToken
-	}
-	return 0, nil, nil
 }
 
 var (
