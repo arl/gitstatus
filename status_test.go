@@ -3,6 +3,8 @@ package gitstatus
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStatus_parsePorcelain(t *testing.T) {
@@ -67,12 +69,9 @@ func TestStatus_parsePorcelain(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := &Status{}
 			r := strings.NewReader(tt.out)
-			if err := got.parsePorcelain(r); err != tt.wantErr {
-				t.Errorf("parsePorcelain() want error = %+v, got %+v", tt.wantErr, err)
-			}
-			if *got != tt.want {
-				t.Errorf("parsePorcelain() Statuses are not equal\nwant:\t%+v\ngot:\t%+v\n\n", tt.want, *got)
-			}
+			err := got.parsePorcelain(r)
+			assert.Equal(t, err, tt.wantErr)
+			assert.Equal(t, *got, tt.want)
 		})
 	}
 }
