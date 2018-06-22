@@ -2,17 +2,21 @@ package gitstatus
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"unicode/utf8"
+
+	"github.com/pkg/errors"
 )
 
 // Status represents the status of a Git working tree directory
 type Status struct {
+	// TODO: see if once the whole status has been parsed we are still going to
+	// need those NumXXX fields. For example, NumUntracked is simply the length
+	// of the Untracked slice.
 	NumAdded     int // NumAdded is the number of files added to the index.
 	NumDeleted   int // NumDeleted is the number of files deleted from the index.
 	NumUpdated   int // NumUpdated is the number of files updated in index.
@@ -29,6 +33,8 @@ type Status struct {
 	IsRebased  bool // IsRebased reports wether a rebase is in progress.
 	IsInitial  bool // IsInitial reports wether the working tree is in its initial state (no commit have been performed yet)
 	IsDetached bool // IsDetached reports wether HEAD is not associated to any branch (detached).
+
+	Untracked []string // Untracked contains the untracked files.
 }
 
 // New returns the Status of the Git working tree 'dir'.
@@ -142,6 +148,9 @@ func (st *Status) parsePorcelain(r io.Reader) error {
 			// unmerged entries
 		case '?':
 			// untracked items
+			if len(line) >= 3 {
+				st.Untracked = append(st.Untracked, line[2:])
+			}
 		case '!':
 			// ignored items
 		}

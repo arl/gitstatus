@@ -64,6 +64,25 @@ func TestStatus_parsePorcelain(t *testing.T) {
 				IsDetached: true,
 			},
 		},
+		{
+			name: "untracked with spaces",
+			out: "?  1 leading space\n" +
+				"? 1 trailing space \n" +
+				"? dir/ dir 2 / nested / spaces again \n" +
+				"? dir/ nested spaces \n" +
+				"? dir/nested\n" +
+				"? file1\n",
+			want: Status{
+				Untracked: []string{
+					" 1 leading space",
+					"1 trailing space ",
+					"dir/ dir 2 / nested / spaces again ",
+					"dir/ nested spaces ",
+					"dir/nested",
+					"file1",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
