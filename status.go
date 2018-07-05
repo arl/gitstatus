@@ -1,7 +1,10 @@
+// Package gitstatus provides information about the git status of a working
+// tree.
 package gitstatus
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os/exec"
@@ -34,12 +37,25 @@ type Status struct {
 	IsInitial  bool // IsInitial reports wether the working tree is in its initial state (no commit have been performed yet)
 	IsDetached bool // IsDetached reports wether HEAD is not associated to any branch (detached).
 
-	Untracked []string // Untracked contains the untracked files.
+	// Untracked contains the untracked files.
+	//
+	// In paths, the given characters are replaced:
+	//  - \t for TAB
+	//  - \n for LF
+	//  - \\ for backslash.
+	Untracked []string
+
+	// Untracked contains the ignored files.
+	//
+	// In paths, the given characters are replaced:
+	//  - \t for TAB
+	//  - \n for LF
+	Ignored []string
 }
 
 // New returns the Status of the Git working tree 'dir'.
 func New(dir string) (*Status, error) {
-	cmd := exec.Command("git", "status", "-uall", "--porcelain=2", "--branch", dir)
+	cmd := exec.Command("git", "status", "-uall", "--porcelain=2", "--branch", "-z", dir)
 	cmd.Env = append(cmd.Env, "LC_ALL=C")
 	out, err := cmd.StdoutPipe()
 	if err != nil {
@@ -128,12 +144,32 @@ func (st *Status) parseHeader(line string) error {
 	return nil
 }
 
+// scanNilBytes is a bufio.SplitFunc function used to tokenize the input with
+// nil bytes. The last byte should always be a nil byte or scanNilBytes returns
+// an error.
+func scanNilBytes(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+	if i := bytes.IndexByte(data, 0); i >= 0 {
+		// We have a full nil-terminated line.
+		return i + 1, data[0:i], nil
+	}
+	// If we're at EOF, we would have a final not ending with a nil byte, we
+	// won't allow that.
+	if atEOF {
+		return 0, nil, errors.New("last line doesn't end with a null byte")
+	}
+	// Request more data.
+	return 0, nil, nil
+}
+
 // parsePorcelain parses version 2 of Git porcelain status string, ss, and
 // fills the corresponding fields of Status.
 func (st *Status) parsePorcelain(r io.Reader) error {
 	var err error
 	scan := bufio.NewScanner(r)
-	scan.Split(bufio.ScanLines)
+	scan.Split(scanNilBytes)
 	for scan.Scan() {
 		line := scan.Text()
 		r, _ := utf8.DecodeRuneInString(line)
