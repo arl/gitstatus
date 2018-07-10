@@ -44,7 +44,7 @@ func main() {
 	check(err)
 	defer func() { check(popDir()) }()
 
-	st, err := gitstatus.New(dir)
+	st, err := gitstatus.New()
 	check(err)
 
 	jb, err := json.Marshal(st)

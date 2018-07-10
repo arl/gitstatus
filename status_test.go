@@ -12,7 +12,7 @@ func porcelainNZT(lines ...string) []byte {
 	return append([]byte(strings.Join(lines, "\x00")), 0)
 }
 
-func TestStatus_parsePorcelain(t *testing.T) {
+func TestStatusParseHeaders(t *testing.T) {
 	tests := []struct {
 		name    string
 		out     []byte // git status output
@@ -22,71 +22,87 @@ func TestStatus_parsePorcelain(t *testing.T) {
 		{
 			name: "aligned",
 			out: porcelainNZT(
-				"# branch.oid 05f8b44d5edc2960eff106e5e780cf83535d0533",
-				"# branch.head master",
-				"# branch.upstream origin/master",
-				"# branch.ab +0 -0"),
+				"## master...origin/master",
+			),
 			want: Status{
 				LocalBranch:  "master",
 				RemoteBranch: "origin/master",
-				CommitSHA1:   "05f8b44d5edc2960eff106e5e780cf83535d0533",
+			},
+		},
+		{
+			name: "no upstream",
+			out: porcelainNZT(
+				"## master",
+			),
+			want: Status{
+				LocalBranch:  "master",
+				RemoteBranch: "",
 			},
 		},
 		{
 			name: "diverged",
 			out: porcelainNZT(
-				"# branch.oid 05f8b44d5edc2960eff106e5e780cf83535d0533",
-				"# branch.head master",
-				"# branch.upstream origin/master",
-				"# branch.ab +1 -3"),
+				"## feature/123/a...upstream/feature/123/a [ahead 26, behind 2]",
+			),
 			want: Status{
-				LocalBranch:  "master",
-				RemoteBranch: "origin/master",
-				CommitSHA1:   "05f8b44d5edc2960eff106e5e780cf83535d0533",
-				AheadCount:   1,
-				BehindCount:  3,
+				LocalBranch:  "feature/123/a",
+				RemoteBranch: "upstream/feature/123/a",
+				AheadCount:   26,
+				BehindCount:  2,
 			},
 		},
 		{
-			name: "after git init",
+			name: "initial",
 			out: porcelainNZT(
-				"# branch.oid (initial)",
-				"# branch.head master"),
+				"## No commits yet on thisbranch",
+			),
 			want: Status{
-				LocalBranch: "master",
+				LocalBranch: "thisbranch",
 				IsInitial:   true,
 			},
 		},
 		{
-			name: "merge conflicts",
+			name: "detached",
 			out: porcelainNZT(
-				"# branch.oid ef7516dfd13efbbd8d64a954dfffc82572c1addf",
-				"# branch.head (detached)",
-				"D. N... 100644 000000 000000 aaacdd96fd16226816ba2b7a00b2a6a85363dd8b 0000000000000000000000000000000000000000 LICENSE",
-				"u UU N... 100644 100644 100644 100644 1113757689eecd5df448b25917fed8ef3ae74705 cc3fdf6f829aeb5c794490158e67ffc33cdeae88 c7da7844b226d19f2f02c1072cf0be97075ca2e8 README.md"),
+				"## HEAD (no branch)",
+			),
 			want: Status{
-				CommitSHA1: "ef7516dfd13efbbd8d64a954dfffc82572c1addf",
 				IsDetached: true,
 			},
 		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := &Status{}
+			r := bytes.NewReader(tt.out)
+			_, err := got.ReadFrom(r)
+			assert.Equal(t, err, tt.wantErr)
+			assert.Equal(t, *got, tt.want)
+		})
+	}
+}
+
+func TestStatusParseModified(t *testing.T) {
+	tests := []struct {
+		name    string
+		out     []byte // git status output
+		want    Status
+		wantErr error
+	}{
 		{
-			name: "untracked with spaces",
+			name: "all cases",
 			out: porcelainNZT(
-				"?  1 leading space",
-				"? 1 trailing space ",
-				"? dir/ dir 2 / nested / spaces again ",
-				"? dir/ nested spaces ",
-				"? dir/nested",
-				"? file1"),
+				"## master",
+				" M index not updated",
+				"MM index updated",
+				"AM added to index",
+				"RM renamed in index",
+				"CM copied in index",
+			),
 			want: Status{
-				Untracked: []string{
-					" 1 leading space",
-					"1 trailing space ",
-					"dir/ dir 2 / nested / spaces again ",
-					"dir/ nested spaces ",
-					"dir/nested",
-					"file1",
-				},
+				LocalBranch: "master",
+				NumModified: 5,
 			},
 		},
 	}
@@ -94,7 +110,109 @@ func TestStatus_parsePorcelain(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := &Status{}
 			r := bytes.NewReader(tt.out)
-			err := got.parsePorcelain(r)
+			_, err := got.ReadFrom(r)
+			assert.Equal(t, err, tt.wantErr)
+			assert.Equal(t, *got, tt.want)
+		})
+	}
+}
+
+func TestStatusParseConflicts(t *testing.T) {
+	tests := []struct {
+		name    string
+		out     []byte // git status output
+		want    Status
+		wantErr error
+	}{
+		{
+			name: "all cases",
+			out: porcelainNZT(
+				"## HEAD (no branch)",
+				"UD unmerged, deleted by them",
+				"UA unmerged, added by them",
+				"UU unmerged, both modified",
+			),
+			want: Status{
+				IsDetached:   true,
+				NumConflicts: 3,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := &Status{}
+			r := bytes.NewReader(tt.out)
+			_, err := got.ReadFrom(r)
+			assert.Equal(t, err, tt.wantErr)
+			assert.Equal(t, *got, tt.want)
+		})
+	}
+}
+
+func TestStatusParseUntracked(t *testing.T) {
+	tests := []struct {
+		name    string
+		out     []byte // git status output
+		want    Status
+		wantErr error
+	}{
+		{
+			name: "all cases",
+			out: porcelainNZT(
+				`## HEAD (no branch)`,
+				`?? blabla`,
+				`?? "dir1/dir2/nested with\ttab"`,
+				`?? "dir1/dir2/nested with backslash\\"`,
+				`?? "dir1/dir2/nested with carrier \nreturn"`,
+			),
+			want: Status{
+				IsDetached:   true,
+				NumUntracked: 4,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := &Status{}
+			r := bytes.NewReader(tt.out)
+			_, err := got.ReadFrom(r)
+			assert.Equal(t, err, tt.wantErr)
+			assert.Equal(t, *got, tt.want)
+		})
+	}
+}
+
+func TestStatusParseStaged(t *testing.T) {
+	tests := []struct {
+		name    string
+		out     []byte // git status output
+		want    Status
+		wantErr error
+	}{
+		{
+			name: "all cases",
+			out: porcelainNZT(
+				`## HEAD (no branch)`,
+				`A  dir1/dir2/nested`,
+				`A  "dir1/dir2/nested with\ttab"`,
+				`A  "dir1/dir2/nested with backslash\\"`,
+				`A  "dir1/dir2/nested with carrier \nreturn"`,
+				`M  fileb`,
+				`A  newfile`,
+				`?? untracked`,
+			),
+			want: Status{
+				IsDetached:   true,
+				NumStaged:    6,
+				NumUntracked: 1,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := &Status{}
+			r := bytes.NewReader(tt.out)
+			_, err := got.ReadFrom(r)
 			assert.Equal(t, err, tt.wantErr)
 			assert.Equal(t, *got, tt.want)
 		})

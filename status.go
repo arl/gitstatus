@@ -10,24 +10,20 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
-	"unicode/utf8"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
 // Status represents the status of a Git working tree directory
 type Status struct {
-	// TODO: see if once the whole status has been parsed we are still going to
-	// need those NumXXX fields. For example, NumUntracked is simply the length
-	// of the Untracked slice.
-	NumAdded     int // NumAdded is the number of files added to the index.
-	NumDeleted   int // NumDeleted is the number of files deleted from the index.
-	NumUpdated   int // NumUpdated is the number of files updated in index.
-	NumRenamed   int // NumRenamed is the number of files renamed in index.
+	NumModified  int // NumModified is the number of modified files.
 	NumConflicts int // NumConflicts is the number of unmerged files.
 	NumUntracked int // NumUntracked is the number of untracked files.
+	NumStaged    int // NumStaged is the number of staged files.
+	NumStashed   int // NumStashed is the number of stash entries.
 
-	CommitSHA1   string // CommitSHA1 is the SHA1 of current commit (or empty in initial state)
+	HEAD         string // HEAD is the SHA1 of current commit (empty in initial state)
 	LocalBranch  string // LocalBranch is the name of the local branch.
 	RemoteBranch string // RemoteBranch is the name of upstream remote branch (tracking).
 	AheadCount   int    // AheadCount indicates by how many commits the local branch is ahead of its upstream branch.
@@ -36,112 +32,35 @@ type Status struct {
 	IsRebased  bool // IsRebased reports wether a rebase is in progress.
 	IsInitial  bool // IsInitial reports wether the working tree is in its initial state (no commit have been performed yet)
 	IsDetached bool // IsDetached reports wether HEAD is not associated to any branch (detached).
-
-	// Untracked contains the untracked files.
-	//
-	// In paths, the given characters are replaced:
-	//  - \t for TAB
-	//  - \n for LF
-	//  - \\ for backslash.
-	Untracked []string
-
-	// Untracked contains the ignored files.
-	//
-	// In paths, the given characters are replaced:
-	//  - \t for TAB
-	//  - \n for LF
-	Ignored []string
+	IsClean    bool // IsClean reports wether the working tree is in a clean state (i.e empty staging area, no conflicts, no stash entries, no untracked files)
 }
 
-// New returns the Status of the Git working tree 'dir'.
-func New(dir string) (*Status, error) {
-	cmd := exec.Command("git", "status", "-uall", "--porcelain=2", "--branch", "-z", dir)
+// New returns the Git Status of the current working directory.
+func New() (*Status, error) {
+	// parse porcelain status
+	cmd := exec.Command("git", "status", "-uall", "--porcelain", "--branch", "-z")
 	cmd.Env = append(cmd.Env, "LC_ALL=C")
-	out, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, errors.Wrap(err, "can't run git status")
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		return nil, errors.Wrap(err, "can't run git status")
-	}
-
 	st := &Status{}
-	err = st.parsePorcelain(out)
+	err := parseCommand(st, cmd)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't parse git status")
+		return nil, errors.Wrap(err, "can't retrieve git status")
 	}
 
-	err = cmd.Wait()
+	// count stash entries
+	cmd = exec.Command("git", "stash", "list")
+	cmd.Env = append(cmd.Env, "LC_ALL=C")
+	var lc linecount
+	err = parseCommand(&lc, cmd)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't run git status")
+		return nil, errors.Wrap(err, "can't count stash entries")
 	}
+	st.NumStashed = int(lc)
 
+	st.IsClean = st.NumStaged == 0 &&
+		st.NumUntracked == 0 &&
+		st.NumStashed == 0 &&
+		st.NumConflicts == 0
 	return st, nil
-}
-
-var (
-	// branchOID regex matches:
-	// # branch.oid <commit> | (initial)
-	branchOID = regexp.MustCompile(`^# branch.oid ([a-z0-9]+|\(initial\))$`)
-
-	// branchHEAD regex matches:
-	// branch.head <branch> | (detached)
-	branchHEAD = regexp.MustCompile(`^# branch.head (.*|\(detached\))$`)
-
-	// branchUpstream regex matches:
-	// # branch.upstream <upstream_branch>
-	branchUpstream = regexp.MustCompile(`^# branch.upstream (.+)$`)
-
-	// branchAB regex matches:
-	// # branch.ab +<ahead> -<behind>
-	branchAB = regexp.MustCompile(`^# branch.ab \+([0-9]+)* \-([0-9]+)*$`)
-)
-
-func (st *Status) parseHeader(line string) error {
-	oid := branchOID.FindStringSubmatch(line)
-	if len(oid) == 2 {
-		if oid[1] == "(initial)" {
-			st.IsInitial = true
-		} else {
-			st.CommitSHA1 = oid[1]
-		}
-		return nil
-	}
-
-	head := branchHEAD.FindStringSubmatch(line)
-	if len(head) == 2 {
-		if head[1] == "(detached)" {
-			st.IsDetached = true
-		} else {
-			st.LocalBranch = head[1]
-		}
-		return nil
-	}
-
-	upstream := branchUpstream.FindStringSubmatch(line)
-	if len(upstream) == 2 {
-		st.RemoteBranch = upstream[1]
-		return nil
-	}
-
-	ab := branchAB.FindStringSubmatch(line)
-	if len(ab) == 3 {
-		v, err := strconv.ParseInt(ab[1], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing branch.ab: %v", err)
-		}
-		st.AheadCount = int(v)
-
-		v, err = strconv.ParseInt(ab[2], 10, 64)
-		if err != nil {
-			return fmt.Errorf("error parsing branch.ab: %v", err)
-		}
-		st.BehindCount = int(v)
-		return nil
-	}
-	return nil
 }
 
 // scanNilBytes is a bufio.SplitFunc function used to tokenize the input with
@@ -164,40 +83,129 @@ func scanNilBytes(data []byte, atEOF bool) (advance int, token []byte, err error
 	return 0, nil, nil
 }
 
-// parsePorcelain parses version 2 of Git porcelain status string, ss, and
-// fills the corresponding fields of Status.
-func (st *Status) parsePorcelain(r io.Reader) error {
+// TODO: find an easier regex?
+var upstreamRx = regexp.MustCompile(`^([[:print:]]+?)(?: \[ahead ([[:digit:]]+), behind ([[:digit:]]+)\]){0,1}$`)
+
+// parses upstream branch name and if present, branch divergence.
+func (st *Status) parseUpstream(s string) error {
+	res := upstreamRx.FindStringSubmatch(s)
+	if len(res) != 4 {
+		return fmt.Errorf(`malformed upstream branch: "%s"`, s)
+	}
 	var err error
+	st.RemoteBranch = res[1]
+	if res[2] != "" {
+		st.AheadCount, err = strconv.Atoi(res[2])
+		if err != nil {
+			return errors.Wrap(err, "ahead count")
+		}
+	}
+	if res[3] != "" {
+		st.BehindCount, err = strconv.Atoi(res[3])
+		if err != nil {
+			return errors.Wrap(err, "behind count")
+		}
+	}
+	return nil
+}
+
+func (st *Status) parseHeader(line string) error {
+	const (
+		initialPrefix = "## No commits yet on "
+		detachedStr   = "## HEAD (no branch)"
+	)
+	if line == detachedStr {
+		st.IsDetached = true
+	} else if strings.HasPrefix(line, initialPrefix) {
+		st.IsInitial = true
+		st.LocalBranch = line[len(initialPrefix):]
+	} else {
+		pos := strings.Index(line, "...")
+		if pos == -1 {
+			// no remote tracking
+			st.LocalBranch = line[3:]
+		} else {
+			st.LocalBranch = line[3:pos]
+			st.parseUpstream(line[pos+3:])
+		}
+	}
+	return nil
+}
+
+// ReadFrom reads and parses git porcelain status from the given reader, filling
+// the corresponding status fields.
+func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 	scan := bufio.NewScanner(r)
 	scan.Split(scanNilBytes)
 	for scan.Scan() {
 		line := scan.Text()
-		r, _ := utf8.DecodeRuneInString(line)
-		switch r {
-		case '#':
-			err = st.parseHeader(line)
-		case '1':
-			// 'ordinary' changed entries
-		case '2':
-			// renamed or copied entries
-		case 'u':
-			// unmerged entries
-		case '?':
-			// untracked items
-			if len(line) >= 3 {
-				st.Untracked = append(st.Untracked, line[2:])
-			}
-		case '!':
-			// ignored items
+		if len(line) < 2 {
+			panic("unknown status line")
 		}
+
+		first, second := line[0], line[1]
+		switch {
+		case first == '#' && second == '#':
+			err = st.parseHeader(line)
+		case second == 'M':
+			st.NumModified++
+		case first == 'U':
+			st.NumConflicts++
+		case first == '?' && second == '?':
+			st.NumUntracked++
+		default:
+			st.NumStaged++
+		}
+
 		if err != nil {
-			return err
+			return
 		}
 	}
 
-	if err := scan.Err(); err != nil {
-		return err
+	if err = scan.Err(); err != nil {
+		return
+	}
+
+	return
+}
+
+// parseCommand runs cmd and parses its output through dst.
+//
+// A pipe is attached to the process standard output, that is redirected to dst.
+// The command is ran from the current working directory.
+func parseCommand(dst io.ReaderFrom, cmd *exec.Cmd) error {
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return errors.Wrapf(err, "exec %s %v", cmd.Path, cmd.Args)
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		return errors.Wrapf(err, "exec %s %v", cmd.Path, cmd.Args)
+	}
+
+	_, err = dst.ReadFrom(out)
+	if err != nil {
+		return errors.Wrapf(err, "exec %s %v", cmd.Path, cmd.Args)
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return errors.Wrapf(err, "exec %s %v", cmd.Path, cmd.Args)
 	}
 
 	return nil
+}
+
+type linecount int
+
+// ReadFrom reads from r, counting the number of lines.
+func (lc *linecount) ReadFrom(r io.Reader) (n int64, err error) {
+	scan := bufio.NewScanner(r)
+	scan.Split(bufio.ScanLines)
+	for scan.Scan() {
+		*lc++
+	}
+
+	return int64(*lc), scan.Err()
 }
