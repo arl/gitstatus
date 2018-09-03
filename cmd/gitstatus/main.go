@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,9 +15,9 @@ func check(err error, args ...interface{}) {
 	}
 }
 
-type popDirFunc func() error
+type popdir func() error
 
-func pushDir(dir string) (popDirFunc, error) {
+func pushdir(dir string) (popdir, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
@@ -40,16 +39,16 @@ func main() {
 		dir = os.Args[1]
 	}
 
-	popDir, err := pushDir(dir)
+	popDir, err := pushdir(dir)
 	check(err)
-	defer func() { check(popDir()) }()
+	defer func() {
+		check(popDir())
+	}()
 
 	st, err := gitstatus.New()
 	check(err)
 
-	jb, err := json.Marshal(st)
-	bb := bytes.Buffer{}
-	json.Indent(&bb, jb, "", "  ")
+	bb, err := json.MarshalIndent(st, "", " ")
 	check(err)
-	fmt.Print(bb.String())
+	fmt.Print(string(bb))
 }
