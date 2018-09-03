@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Status represents the status of a Git working tree directory
+// Status represents the status of a Git working tree directory.
 type Status struct {
 	NumModified  int // NumModified is the number of modified files.
 	NumConflicts int // NumConflicts is the number of unmerged files.
@@ -39,10 +39,17 @@ type Status struct {
 	IsReverting     bool // IsReverting reports wether a revert is in progress.
 	IsBissecting    bool // IsBissecting reports wether a bissect is in progress.
 
-	IsInitial  bool // IsInitial reports wether the working tree is in its initial state (no commit have been performed yet)
-	IsDetached bool // IsDetached reports wether HEAD is not associated to any branch (detached).
+	// IsInitial reports wether the working tree is in its initial state (no
+	// commit have been performed yet).
+	IsInitial bool
 
-	IsClean bool // IsClean reports wether the working tree is in a clean state (i.e empty staging area, no conflicts, no stash entries, no untracked files)
+	// IsDetached reports wether HEAD is not associated to any branch
+	// (detached).
+	IsDetached bool
+
+	// IsClean reports wether the working tree is in a clean state (i.e empty
+	// staging area, no conflicts, no stash entries, no untracked files).
+	IsClean bool
 }
 
 // New returns the Git Status of the current working directory.
@@ -96,7 +103,7 @@ func scanNilBytes(data []byte, atEOF bool) (advance int, token []byte, err error
 	// If we're at EOF, we would have a final not ending with a nil byte, we
 	// won't allow that.
 	if atEOF {
-		return 0, nil, errors.New("last line doesn't end with a null byte")
+		return 0, nil, errors.New("last line doesn't end with a nil byte")
 	}
 	// Request more data.
 	return 0, nil, nil
@@ -111,21 +118,17 @@ func (st *Status) parseUpstream(s string) error {
 	if len(res) != 4 {
 		return fmt.Errorf(`malformed upstream branch: "%s"`, s)
 	}
-	var err error
+
 	st.RemoteBranch = res[1]
-	if res[2] != "" {
+
+	var err error
+	if res[2] != "" && res[3] != "" {
 		st.AheadCount, err = strconv.Atoi(res[2])
-		if err != nil {
-			return errors.Wrap(err, "ahead count")
-		}
-	}
-	if res[3] != "" {
+		err = errors.Wrap(err, "ahead count")
 		st.BehindCount, err = strconv.Atoi(res[3])
-		if err != nil {
-			return errors.Wrap(err, "behind count")
-		}
+		err = errors.Wrap(err, "behind count")
 	}
-	return nil
+	return err
 }
 
 func (st *Status) parseHeader(line string) error {
@@ -133,12 +136,13 @@ func (st *Status) parseHeader(line string) error {
 		initialPrefix = "## No commits yet on "
 		detachedStr   = "## HEAD (no branch)"
 	)
-	if line == detachedStr {
+	switch {
+	case line == detachedStr:
 		st.IsDetached = true
-	} else if strings.HasPrefix(line, initialPrefix) {
+	case strings.HasPrefix(line, initialPrefix):
 		st.IsInitial = true
 		st.LocalBranch = line[len(initialPrefix):]
-	} else {
+	default:
 		pos := strings.Index(line, "...")
 		if pos == -1 {
 			// no remote tracking
@@ -148,6 +152,7 @@ func (st *Status) parseHeader(line string) error {
 			st.parseUpstream(line[pos+3:])
 		}
 	}
+
 	return nil
 }
 
@@ -228,24 +233,26 @@ func (st *Status) checkState(gitdir string) {
 func parseCommand(dst io.ReaderFrom, cmd *exec.Cmd) error {
 	out, err := cmd.StdoutPipe()
 	if err != nil {
-		return errors.Wrapf(err, "exec %s %v", cmd.Path, cmd.Args)
+		return errCmd(err, cmd)
 	}
 
 	err = cmd.Start()
 	if err != nil {
-		return errors.Wrapf(err, "exec %s %v", cmd.Path, cmd.Args)
+		return errCmd(err, cmd)
 	}
 
 	_, err = dst.ReadFrom(out)
 	if err != nil {
-		return errors.Wrapf(err, "exec %s %v", cmd.Path, cmd.Args)
+		return errCmd(err, cmd)
 	}
 
-	err = cmd.Wait()
+	return errCmd(cmd.Wait(), cmd)
+}
+
+func errCmd(err error, cmd *exec.Cmd) error {
 	if err != nil {
 		return errors.Wrapf(err, "exec %s %v", cmd.Path, cmd.Args)
 	}
-
 	return nil
 }
 
@@ -258,6 +265,5 @@ func (lc *linecount) ReadFrom(r io.Reader) (n int64, err error) {
 	for scan.Scan() {
 		*lc++
 	}
-
 	return int64(*lc), scan.Err()
 }
