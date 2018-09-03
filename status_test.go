@@ -218,3 +218,23 @@ func TestStatusParseStaged(t *testing.T) {
 		})
 	}
 }
+
+func TestStatusParseMalformed(t *testing.T) {
+	tests := []struct {
+		name string
+		out  []byte // git status output
+	}{
+		{
+			name: "missing last nil byte",
+			out:  []byte(`## HEAD (no branch)`),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := &Status{}
+			r := bytes.NewReader(tt.out)
+			_, err := got.ReadFrom(r)
+			assert.Truef(t, err != nil, "wantErr != nil, got err = %s", err)
+		})
+	}
+}
