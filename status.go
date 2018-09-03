@@ -7,7 +7,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -23,16 +25,24 @@ type Status struct {
 	NumStaged    int // NumStaged is the number of staged files.
 	NumStashed   int // NumStashed is the number of stash entries.
 
-	HEAD         string // HEAD is the SHA1 of current commit (empty in initial state)
+	HEAD         string // HEAD is the SHA1 of current commit (empty in initial state).
 	LocalBranch  string // LocalBranch is the name of the local branch.
 	RemoteBranch string // RemoteBranch is the name of upstream remote branch (tracking).
-	AheadCount   int    // AheadCount indicates by how many commits the local branch is ahead of its upstream branch.
-	BehindCount  int    // BehindCount indicates by how many commits the local branch is behind its upstream branch.
+	AheadCount   int    // AheadCount reports by how many commits the local branch is ahead of its upstream branch.
+	BehindCount  int    // BehindCount reports by how many commits the local branch is behind its upstream branch.
 
-	IsRebased  bool // IsRebased reports wether a rebase is in progress.
+	IsRebasing      bool // IsRebasing reports wether a rebase is in progress, either interactive or manual.
+	IsAM            bool // IsAM reports wether a git AM is in progress (mailbox patch).
+	IsAMRebase      bool // IsAMRebase reports wether a git AM rebasing is in progress.
+	IsMerging       bool // IsMerging reports wether a merge is in progress.
+	IsCherryPicking bool // IsCherryPicking reports wether a cherry-pick is in progress.
+	IsReverting     bool // IsReverting reports wether a revert is in progress.
+	IsBissecting    bool // IsBissecting reports wether a bissect is in progress.
+
 	IsInitial  bool // IsInitial reports wether the working tree is in its initial state (no commit have been performed yet)
 	IsDetached bool // IsDetached reports wether HEAD is not associated to any branch (detached).
-	IsClean    bool // IsClean reports wether the working tree is in a clean state (i.e empty staging area, no conflicts, no stash entries, no untracked files)
+
+	IsClean bool // IsClean reports wether the working tree is in a clean state (i.e empty staging area, no conflicts, no stash entries, no untracked files)
 }
 
 // New returns the Git Status of the current working directory.
@@ -56,10 +66,19 @@ func New() (*Status, error) {
 	}
 	st.NumStashed = int(lc)
 
+	// set 'clean working tree' flag
 	st.IsClean = st.NumStaged == 0 &&
 		st.NumUntracked == 0 &&
 		st.NumStashed == 0 &&
 		st.NumConflicts == 0
+
+	// sets other special flags and fields.
+	cmd = exec.Command("git", "rev-parse", "--git-dir")
+	gitdir, err := cmd.Output()
+	if err != nil {
+		return nil, errors.Wrap(err, "can't retrieve git-dir")
+	}
+	st.checkState(string(gitdir))
 	return st, nil
 }
 
@@ -167,6 +186,39 @@ func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 
 	return
+}
+
+// returns true if the path made of the given components exists and is readable.
+func exists(components ...string) bool {
+	_, err := os.Stat(path.Join(components...))
+	return err == nil
+}
+
+// checkState checks the current state of the working tree and sets at most one
+// special state flag accordingly.
+func (st *Status) checkState(gitdir string) {
+	// from: git/contrib/completion/git-prompt.sh
+	switch {
+	case exists(gitdir, "rebase-merge"):
+		st.IsRebasing = true
+	case exists(gitdir, "rebase-apply"):
+		switch {
+		case exists(gitdir, "rebase-apply", "rebasing"):
+			st.IsRebasing = true
+		case exists(gitdir, "rebase-apply", "applying"):
+			st.IsAM = true
+		default:
+			st.IsAMRebase = true
+		}
+	case exists(gitdir, "MERGE_HEAD"):
+		st.IsMerging = true
+	case exists(gitdir, "CHERRY_PICK_HEAD"):
+		st.IsCherryPicking = true
+	case exists(gitdir, "REVERT_HEAD"):
+		st.IsReverting = true
+	case exists(gitdir, "BISECT_LOG"):
+		st.IsBissecting = true
+	}
 }
 
 // parseCommand runs cmd and parses its output through dst.
