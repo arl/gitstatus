@@ -31,13 +31,8 @@ type Status struct {
 	AheadCount   int    // AheadCount reports by how many commits the local branch is ahead of its upstream branch.
 	BehindCount  int    // BehindCount reports by how many commits the local branch is behind its upstream branch.
 
-	IsRebasing      bool // IsRebasing reports wether a rebase is in progress, either interactive or manual.
-	IsAM            bool // IsAM reports wether a git AM is in progress (mailbox patch).
-	IsAMRebase      bool // IsAMRebase reports wether a git AM rebasing is in progress.
-	IsMerging       bool // IsMerging reports wether a merge is in progress.
-	IsCherryPicking bool // IsCherryPicking reports wether a cherry-pick is in progress.
-	IsReverting     bool // IsReverting reports wether a revert is in progress.
-	IsBissecting    bool // IsBissecting reports wether a bissect is in progress.
+	// State reports the current working tree state.
+	State WorkingTreeState
 
 	// IsInitial reports wether the working tree is in its initial state (no
 	// commit have been performed yet).
@@ -51,6 +46,21 @@ type Status struct {
 	// staging area, no conflicts, no stash entries, no untracked files).
 	IsClean bool
 }
+
+// SpecialState indicates the state of a Git working tree. Its zero-value is
+// NormalState.
+type WorkingTreeState int
+
+const (
+	Default       WorkingTreeState = iota // Default is state set when the working tree is not in any special state.
+	Rebasing                              // Rebasing is the state set when a rebase is in progress, either interactive or manual.
+	AM                                    // AM is the state set when a git AM is in progress (mailbox patch).
+	AMRebase                              // AMRebase is the state set when a git AM rebasing is in progress.
+	Merging                               // Merging is the state set when a merge is in progress.
+	CherryPicking                         // CherryPicking is the state when a cherry-pick is in progress.
+	Reverting                             // Reverting is the state when a revert is in progress.
+	Bissecting                            // Bissecting is the state when a bissect is in progress.
+)
 
 // New returns the Git Status of the current working directory.
 func New() (*Status, error) {
@@ -202,27 +212,28 @@ func exists(components ...string) bool {
 // checkState checks the current state of the working tree and sets at most one
 // special state flag accordingly.
 func (st *Status) checkState(gitdir string) {
+	st.State = Default
 	// from: git/contrib/completion/git-prompt.sh
 	switch {
 	case exists(gitdir, "rebase-merge"):
-		st.IsRebasing = true
+		st.State = Rebasing
 	case exists(gitdir, "rebase-apply"):
 		switch {
 		case exists(gitdir, "rebase-apply", "rebasing"):
-			st.IsRebasing = true
+			st.State = Rebasing
 		case exists(gitdir, "rebase-apply", "applying"):
-			st.IsAM = true
+			st.State = AM
 		default:
-			st.IsAMRebase = true
+			st.State = AMRebase
 		}
 	case exists(gitdir, "MERGE_HEAD"):
-		st.IsMerging = true
+		st.State = Merging
 	case exists(gitdir, "CHERRY_PICK_HEAD"):
-		st.IsCherryPicking = true
+		st.State = CherryPicking
 	case exists(gitdir, "REVERT_HEAD"):
-		st.IsReverting = true
+		st.State = Reverting
 	case exists(gitdir, "BISECT_LOG"):
-		st.IsBissecting = true
+		st.State = Bissecting
 	}
 }
 
