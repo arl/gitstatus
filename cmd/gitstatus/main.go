@@ -3,52 +3,49 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/arl/gitstatus"
 )
 
-func check(err error, args ...interface{}) {
-	if err != nil {
-		fmt.Println("error:", err, args)
-		os.Exit(1)
-	}
-}
+type outFormat int
 
-type popdir func() error
-
-func pushdir(dir string) (popdir, error) {
-	pwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-
-	err = os.Chdir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	return func() error {
-		return os.Chdir(pwd)
-	}, nil
-}
+const (
+	outJSON outFormat = iota
+	outTmux
+)
 
 func main() {
-	dir := "."
-	if len(os.Args) > 1 {
-		dir = os.Args[1]
+	// parse cli options.
+	dir, format, quiet := parseOptions()
+
+	// handle directory change.
+	if dir != "." {
+		popDir, err := pushdir(dir)
+		check(err, quiet)
+		defer func() {
+			check(popDir(), quiet)
+		}()
 	}
 
-	popDir, err := pushdir(dir)
-	check(err)
-	defer func() {
-		check(popDir())
-	}()
-
+	// retrieve git status.
 	st, err := gitstatus.New()
-	check(err)
+	check(err, quiet)
 
-	bb, err := json.MarshalIndent(st, "", " ")
-	check(err)
-	fmt.Print(string(bb))
+	// format and print.
+	var out string
+
+	switch format {
+	case outJSON:
+		var buf []byte
+		buf, err = json.MarshalIndent(st, "", " ")
+		out = string(buf)
+	case outTmux:
+		out, err = tmuxFormat(st)
+	}
+	check(err, quiet)
+	fmt.Print(out)
+}
+
+func tmuxFormat(st *gitstatus.Status) (string, error) {
+	panic("not implemented")
 }
