@@ -2,7 +2,6 @@ package gitstatus
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -258,7 +257,6 @@ func TestStatusParseMalformed(t *testing.T) {
 			got := &Status{}
 			r := bytes.NewReader(tt.out)
 			_, err := got.ReadFrom(r)
-			fmt.Println(err)
 			assert.Truef(t, err != nil, "want err != nil, got err = %v", err)
 		})
 	}
