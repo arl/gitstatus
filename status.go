@@ -119,53 +119,6 @@ func scanNilBytes(data []byte, atEOF bool) (advance int, token []byte, err error
 	return 0, nil, nil
 }
 
-// TODO: find an easier regex?
-var upstreamRx = regexp.MustCompile(`^([[:print:]]+?)(?: \[ahead ([[:digit:]]+), behind ([[:digit:]]+)\]){0,1}$`)
-
-// parses upstream branch name and if present, branch divergence.
-func (st *Status) parseUpstream(s string) error {
-	res := upstreamRx.FindStringSubmatch(s)
-	if len(res) != 4 {
-		return fmt.Errorf(`malformed upstream branch: "%s"`, s)
-	}
-
-	st.RemoteBranch = res[1]
-
-	var err error
-	if res[2] != "" && res[3] != "" {
-		st.AheadCount, err = strconv.Atoi(res[2])
-		err = errors.Wrap(err, "ahead count")
-		st.BehindCount, err = strconv.Atoi(res[3])
-		err = errors.Wrap(err, "behind count")
-	}
-	return err
-}
-
-func (st *Status) parseHeader(line string) error {
-	const (
-		initialPrefix = "## No commits yet on "
-		detachedStr   = "## HEAD (no branch)"
-	)
-	switch {
-	case line == detachedStr:
-		st.IsDetached = true
-	case strings.HasPrefix(line, initialPrefix):
-		st.IsInitial = true
-		st.LocalBranch = line[len(initialPrefix):]
-	default:
-		pos := strings.Index(line, "...")
-		if pos == -1 {
-			// no remote tracking
-			st.LocalBranch = line[3:]
-		} else {
-			st.LocalBranch = line[3:pos]
-			st.parseUpstream(line[pos+3:])
-		}
-	}
-
-	return nil
-}
-
 // ReadFrom reads and parses git porcelain status from the given reader, filling
 // the corresponding status fields.
 func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
@@ -174,7 +127,7 @@ func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 	for scan.Scan() {
 		line := scan.Text()
 		if len(line) < 2 {
-			panic("unknown status line")
+			return 0, errUnexpectedStatus
 		}
 
 		first, second := line[0], line[1]
@@ -192,7 +145,7 @@ func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 
 		if err != nil {
-			return
+			return 0, err
 		}
 	}
 
@@ -201,6 +154,73 @@ func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 
 	return
+}
+
+func (st *Status) parseHeader(line string) error {
+	const (
+		initialPrefix = "## No commits yet on "
+		detachedStr   = "## HEAD (no branch)"
+	)
+
+	switch {
+	case line == detachedStr:
+		st.IsDetached = true
+	case strings.HasPrefix(line, initialPrefix):
+		st.IsInitial = true
+		st.LocalBranch = line[len(initialPrefix):]
+	default:
+		// regular branch[...remote] output, with or without ahead/behind counts
+		if len(line) < 4 {
+			// branch name is at least one character
+			return errUnexpectedHeader
+		}
+		// check if a remote tracking branch is specified
+		pos := strings.Index(line, "...")
+		if pos == -1 {
+			// we should have the branch name and nothing else, where spaces
+			// are not allowed
+			if strings.IndexByte(line[3:], ' ') != -1 {
+				return errUnexpectedHeader
+			}
+			st.LocalBranch = line[3:]
+		} else {
+			st.LocalBranch = line[3:pos]
+			st.parseUpstream(line[pos+3:])
+		}
+	}
+
+	return nil
+}
+
+// parseUpstream parses the remote branch name and if present, its divergence
+// with local branch (ahead / behind count)
+func (st *Status) parseUpstream(s string) error {
+	var err error
+	pos := strings.IndexByte(s, ' ')
+	if pos == -1 {
+		st.RemoteBranch = s
+		return nil
+	}
+	st.RemoteBranch = s[:pos]
+	s = strings.Trim(s[pos+1:], "[]")
+
+	hasAhead := strings.Contains(s, "ahead")
+	hasBehind := strings.Contains(s, "behind")
+
+	switch {
+	case hasAhead && hasBehind:
+		_, err = fmt.Sscanf(s, "ahead %d, behind %d", &st.AheadCount, &st.BehindCount)
+	case hasAhead:
+		_, err = fmt.Sscanf(s, "ahead %d", &st.AheadCount)
+	case hasBehind:
+		_, err = fmt.Sscanf(s, "behind %d", &st.BehindCount)
+	default:
+		err = fmt.Errorf(`unexpected string "%s"`, s)
+	}
+	if err != nil {
+		return fmt.Errorf("%v: %v", errParseAheadBehind, err)
+	}
+	return nil
 }
 
 // returns true if the path made of the given components exists and is readable.

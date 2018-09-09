@@ -2,6 +2,7 @@ package gitstatus
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -37,6 +38,28 @@ func TestStatusParseHeaders(t *testing.T) {
 			want: Status{
 				LocalBranch:  "master",
 				RemoteBranch: "",
+			},
+		},
+		{
+			name: "ahead",
+			out: porcelainNZT(
+				"## feature/123/a...upstream/feature/123/a [ahead 3]",
+			),
+			want: Status{
+				LocalBranch:  "feature/123/a",
+				RemoteBranch: "upstream/feature/123/a",
+				AheadCount:   3,
+			},
+		},
+		{
+			name: "behind",
+			out: porcelainNZT(
+				"## feature/123/a...upstream/feature/123/a [behind 2]",
+			),
+			want: Status{
+				LocalBranch:  "feature/123/a",
+				RemoteBranch: "upstream/feature/123/a",
+				BehindCount:  2,
 			},
 		},
 		{
@@ -77,8 +100,8 @@ func TestStatusParseHeaders(t *testing.T) {
 			got := &Status{}
 			r := bytes.NewReader(tt.out)
 			_, err := got.ReadFrom(r)
-			assert.Equal(t, err, tt.wantErr)
-			assert.Equal(t, *got, tt.want)
+			assert.Equal(t, tt.wantErr, err)
+			assert.Equal(t, tt.want, *got)
 		})
 	}
 }
@@ -224,17 +247,42 @@ func TestStatusParseMalformed(t *testing.T) {
 		name string
 		out  []byte // git status output
 	}{
-		{
-			name: "missing last nil byte",
-			out:  []byte(`## HEAD (no branch)`),
-		},
+		{name: "illegal header", out: porcelainNZT(`##`)},
+		{name: "trailing space", out: porcelainNZT(`## branch `)},
+		{name: "illformed header", out: porcelainNZT(`## branch [ahead 2`)},
+		{name: "illformed header", out: porcelainNZT(`## branch [ahead 2,`)},
+		{name: "illformed header", out: porcelainNZT(`## branch [ahead 2, behind 3`)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := &Status{}
 			r := bytes.NewReader(tt.out)
 			_, err := got.ReadFrom(r)
-			assert.Truef(t, err != nil, "wantErr != nil, got err = %s", err)
+			fmt.Println(err)
+			assert.Truef(t, err != nil, "want err != nil, got err = %v", err)
+		})
+	}
+}
+
+func TestLineCount(t *testing.T) {
+	tests := []struct {
+		input  string
+		nlines int64 // expected number of lines
+	}{
+		{input: "", nlines: 0},
+		{input: "\n", nlines: 1},
+		{input: "\n\n", nlines: 2},
+		{input: "\r\n", nlines: 1},
+		{input: "\r\n\r\n", nlines: 2},
+	}
+	for _, tc := range tests {
+		t.Run(t.Name(), func(t *testing.T) {
+			var lc linecount
+			r := bytes.NewBufferString(tc.input)
+			n, err := lc.ReadFrom(r)
+			assert.NoErrorf(t, err, "want err = nil, got err = %s", err)
+			assert.Equalf(t, tc.nlines, int64(lc), "nlines != lc, %d != %d, want ==", tc.nlines, lc)
+			assert.Equalf(t, tc.nlines, n, "nlines != n, %d != %d, want ==", tc.nlines, n)
 		})
 	}
 }
