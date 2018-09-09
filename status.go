@@ -22,7 +22,7 @@ type Status struct {
 	NumStaged    int // NumStaged is the number of staged files.
 	NumStashed   int // NumStashed is the number of stash entries.
 
-	HEAD         string // HEAD is the SHA1 of current commit (empty in initial state).
+	HEAD         string // HEAD is the -short- SHA1 of current commit (empty in initial state).
 	LocalBranch  string // LocalBranch is the name of the local branch.
 	RemoteBranch string // RemoteBranch is the name of upstream remote branch (tracking).
 	AheadCount   int    // AheadCount reports by how many commits the local branch is ahead of its upstream branch.
@@ -83,14 +83,14 @@ func New() (*Status, error) {
 		st.NumConflicts == 0
 
 	// sets other special flags and fields.
-	cmd = exec.Command("git", "rev-parse", "HEAD", "--git-dir")
+	cmd = exec.Command("git", "rev-parse", "--git-dir", "--short", "HEAD")
 	var lines lines
 	err = parseCommand(&lines, cmd)
 	if err != nil || len(lines) != 2 {
 		return nil, wrapError(err, "git rev-parse error")
 	}
-	st.HEAD = strings.TrimSpace(lines[0])
-	st.checkState(strings.TrimSpace(lines[1]))
+	st.checkState(strings.TrimSpace(lines[0]))
+	st.HEAD = strings.TrimSpace(lines[1])
 	return st, nil
 }
 
