@@ -271,7 +271,7 @@ func parseCommand(dst io.ReaderFrom, cmd *exec.Cmd) error {
 
 func errCmd(err error, cmd *exec.Cmd) error {
 	if err != nil {
-		return errors.Wrapf(err, "exec %s %v", cmd.Path, cmd.Args)
+		return errors.Wrapf(err, `exec %s "%v"`, cmd.Path, strings.Join(cmd.Args, " "))
 	}
 	return nil
 }
