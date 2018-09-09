@@ -5,14 +5,13 @@ package gitstatus
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // Status represents the status of a Git working tree directory.
@@ -59,7 +58,7 @@ func New() (*Status, error) {
 	st := &Status{}
 	err := parseCommand(st, cmd)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't retrieve git status")
+		return nil, wrapError(err, "can't retrieve git status")
 	}
 
 	// count stash entries
@@ -68,7 +67,7 @@ func New() (*Status, error) {
 	var lc linecount
 	err = parseCommand(&lc, cmd)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't count stash entries")
+		return nil, wrapError(err, "can't count stash entries")
 	}
 	st.NumStashed = int(lc)
 
@@ -82,7 +81,7 @@ func New() (*Status, error) {
 	cmd = exec.Command("git", "rev-parse", "--git-dir")
 	buf, err := cmd.Output()
 	if err != nil {
-		return nil, errors.Wrap(err, "can't retrieve git-dir")
+		return nil, wrapError(err, "can't retrieve git-dir")
 	}
 	st.checkState(strings.TrimSpace(string(buf)))
 	return st, nil
@@ -270,10 +269,7 @@ func parseCommand(dst io.ReaderFrom, cmd *exec.Cmd) error {
 }
 
 func errCmd(err error, cmd *exec.Cmd) error {
-	if err != nil {
-		return errors.Wrapf(err, `exec %s "%v"`, cmd.Path, strings.Join(cmd.Args, " "))
-	}
-	return nil
+	return wrapErrorf(err, `exec %s "%v"`, cmd.Path, strings.Join(cmd.Args, " "))
 }
 
 type linecount int
