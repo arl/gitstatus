@@ -61,6 +61,11 @@ func New() (*Status, error) {
 		return nil, wrapError(err, "can't retrieve git status")
 	}
 
+	if st.IsInitial {
+		// the successive commands require at least one commit.
+		return st, nil
+	}
+
 	// count stash entries
 	cmd = exec.Command("git", "stash", "list")
 	cmd.Env = append(cmd.Env, "LC_ALL=C")
