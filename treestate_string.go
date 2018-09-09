@@ -4,9 +4,9 @@ package gitstatus
 
 import "strconv"
 
-const _TreeState_name = "DefaultRebasingAMAMRebaseMergingCherryPickingRevertingBissecting"
+const _TreeState_name = "DefaultRebasingAMAMRebaseMergingCherryPickingRevertingBisecting"
 
-var _TreeState_index = [...]uint8{0, 7, 15, 17, 25, 32, 45, 54, 64}
+var _TreeState_index = [...]uint8{0, 7, 15, 17, 25, 32, 45, 54, 63}
 
 func (i TreeState) String() string {
 	if i < 0 || i >= TreeState(len(_TreeState_index)-1) {

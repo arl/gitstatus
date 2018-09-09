@@ -248,7 +248,7 @@ func (st *Status) checkState(gitdir string) {
 	case exists(gitdir, "REVERT_HEAD"):
 		st.State = Reverting
 	case exists(gitdir, "BISECT_LOG"):
-		st.State = Bissecting
+		st.State = Bisecting
 	}
 }
 

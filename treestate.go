@@ -19,7 +19,7 @@ const (
 	Merging                        // Merging is the state set when a merge is in progress.
 	CherryPicking                  // CherryPicking is the state when a cherry-pick is in progress.
 	Reverting                      // Reverting is the state when a revert is in progress.
-	Bissecting                     // Bissecting is the state when a bissect is in progress.
+	Bisecting                      // Bisecting is the state when a bisect is in progress.
 )
 
 // MarshalJSON returns the JSON encoding of the tree state.
