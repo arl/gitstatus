@@ -10,8 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -31,8 +29,8 @@ type Status struct {
 	AheadCount   int    // AheadCount reports by how many commits the local branch is ahead of its upstream branch.
 	BehindCount  int    // BehindCount reports by how many commits the local branch is behind its upstream branch.
 
-	// State reports the current working tree state.
-	State WorkingTreeState
+	// State indicates the state of the working tree.
+	State TreeState
 
 	// IsInitial reports wether the working tree is in its initial state (no
 	// commit have been performed yet).
@@ -47,19 +45,10 @@ type Status struct {
 	IsClean bool
 }
 
-// SpecialState indicates the state of a Git working tree. Its zero-value is
-// NormalState.
-type WorkingTreeState int
-
-const (
-	Default       WorkingTreeState = iota // Default is state set when the working tree is not in any special state.
-	Rebasing                              // Rebasing is the state set when a rebase is in progress, either interactive or manual.
-	AM                                    // AM is the state set when a git AM is in progress (mailbox patch).
-	AMRebase                              // AMRebase is the state set when a git AM rebasing is in progress.
-	Merging                               // Merging is the state set when a merge is in progress.
-	CherryPicking                         // CherryPicking is the state when a cherry-pick is in progress.
-	Reverting                             // Reverting is the state when a revert is in progress.
-	Bissecting                            // Bissecting is the state when a bissect is in progress.
+var (
+	errParseAheadBehind = errors.New("can't parse ahead/behind count")
+	errUnexpectedHeader = errors.New("unexpected header format")
+	errUnexpectedStatus = errors.New("unexpected git status output")
 )
 
 // New returns the Git Status of the current working directory.
@@ -91,11 +80,11 @@ func New() (*Status, error) {
 
 	// sets other special flags and fields.
 	cmd = exec.Command("git", "rev-parse", "--git-dir")
-	gitdir, err := cmd.Output()
+	buf, err := cmd.Output()
 	if err != nil {
 		return nil, errors.Wrap(err, "can't retrieve git-dir")
 	}
-	st.checkState(string(gitdir))
+	st.checkState(strings.TrimSpace(string(buf)))
 	return st, nil
 }
 
