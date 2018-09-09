@@ -78,12 +78,14 @@ func New() (*Status, error) {
 		st.NumConflicts == 0
 
 	// sets other special flags and fields.
-	cmd = exec.Command("git", "rev-parse", "--git-dir")
-	buf, err := cmd.Output()
-	if err != nil {
-		return nil, wrapError(err, "can't retrieve git-dir")
+	cmd = exec.Command("git", "rev-parse", "HEAD", "--git-dir")
+	var lines lines
+	err = parseCommand(&lines, cmd)
+	if err != nil || len(lines) != 2 {
+		return nil, wrapError(err, "git rev-parse error")
 	}
-	st.checkState(strings.TrimSpace(string(buf)))
+	st.HEAD = strings.TrimSpace(lines[0])
+	st.checkState(strings.TrimSpace(lines[1]))
 	return st, nil
 }
 
@@ -282,4 +284,16 @@ func (lc *linecount) ReadFrom(r io.Reader) (n int64, err error) {
 		*lc++
 	}
 	return int64(*lc), scan.Err()
+}
+
+type lines []string
+
+// ReadFrom reads from r, appending string to lines for each line in r.
+func (l *lines) ReadFrom(r io.Reader) (n int64, err error) {
+	scan := bufio.NewScanner(r)
+	scan.Split(bufio.ScanLines)
+	for scan.Scan() {
+		*l = append(*l, scan.Text())
+	}
+	return int64(len(*l)), scan.Err()
 }
