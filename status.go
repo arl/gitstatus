@@ -53,7 +53,7 @@ var (
 // New returns the Git Status of the current working directory.
 func New() (*Status, error) {
 	// parse porcelain status
-	cmd := exec.Command("git", "status", "-uall", "--porcelain", "--branch", "-z")
+	cmd := exec.Command("git", "status", "--porcelain", "--branch", "-z")
 	cmd.Env = append(cmd.Env, "LC_ALL=C")
 	st := &Status{}
 	err := parseCommand(st, cmd)
@@ -135,6 +135,7 @@ func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 			st.NumConflicts++
 		case first == '?' && second == '?':
 			st.NumUntracked++
+			println(line)
 		default:
 			st.NumStaged++
 		}
