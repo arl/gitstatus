@@ -1,22 +1,19 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/arl/gitstatus"
+	"github.com/arl/gitstatus/format/json"
+	"github.com/arl/gitstatus/format/tmux"
 )
 
-type outFormat int
-
-const (
-	outJSON outFormat = iota
-	outTmux
-)
+var errUnknownOutputFormat = errors.New("unknown output format")
 
 func main() {
 	// parse cli options.
-	dir, format, quiet := parseOptions()
+	dir, format, quiet, cfg := parseOptions()
 
 	// handle directory change.
 	if dir != "." {
@@ -31,21 +28,19 @@ func main() {
 	st, err := gitstatus.New()
 	check(err, quiet)
 
-	// format and print.
-	var out string
+	// register formaters
+	formaters := make(map[string]gitstatus.Formater)
+	formaters["json"] = &json.Formater{}
+	formaters["tmux"] = &tmux.Formater{Config: cfg.Tmux}
 
-	switch format {
-	case outJSON:
-		var buf []byte
-		buf, err = json.MarshalIndent(st, "", " ")
-		out = string(buf)
-	case outTmux:
-		out, err = tmuxFormat(st)
+	formater, ok := formaters[format]
+	if !ok {
+		check(errUnknownOutputFormat, quiet)
 	}
+
+	// format and print
+	var out string
+	out, err = formater.Format(st)
 	check(err, quiet)
 	fmt.Print(out)
-}
-
-func tmuxFormat(st *gitstatus.Status) (string, error) {
-	panic("not implemented")
 }

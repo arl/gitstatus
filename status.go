@@ -135,7 +135,6 @@ func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 			st.NumConflicts++
 		case first == '?' && second == '?':
 			st.NumUntracked++
-			println(line)
 		default:
 			st.NumStaged++
 		}

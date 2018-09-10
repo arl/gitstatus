@@ -1,10 +1,12 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/arl/gitstatus/format/tmux"
+	"github.com/go-yaml/yaml"
 )
 
 func check(err error, quiet bool) {
@@ -24,16 +26,20 @@ gitstatus prints the status of a Git working tree.
 If directory is not given, it default to the working directory.  
 
 Options:
-  -q         be quiet. In case of errors, don't print nothing.
-  -fmt       output format, defaults to json.
-      json   prints status as a JSON object.
-      tmux   prints status as a tmux format string.
+  -q              be quiet. In case of errors, don't print nothing.
+  -fmt            output format, defaults to json.
+      json        prints status as a JSON object.
+      tmux        prints status as a tmux format string.
+  -cfg cfgfile    gitstatus output configuration file.
+  -printcfg       prints default configuration file.
 `
 
-var errUnknownOutputFormat = errors.New("unknown output format")
+var defaultCfg = Config{Tmux: tmux.DefaultCfg}
 
-func parseOptions() (dir string, format outFormat, quiet bool) {
+func parseOptions() (dir string, format string, quiet bool, cfg Config) {
 	fmtOpt := flag.String("fmt", "json", "")
+	cfgOpt := flag.String("cfg", "", "")
+	printCfgOpt := flag.Bool("printcfg", false, "")
 	quietOpt := flag.Bool("q", false, "")
 	flag.Usage = func() {
 		fmt.Println(usage)
@@ -43,15 +49,17 @@ func parseOptions() (dir string, format outFormat, quiet bool) {
 	if flag.NArg() > 0 {
 		dir = flag.Arg(0)
 	}
-
-	// format output
-	switch *fmtOpt {
-	case "json":
-		format = outJSON
-	case "tmux":
-		format = outTmux
-	default:
-		check(errUnknownOutputFormat, *quietOpt)
+	if *printCfgOpt {
+		enc := yaml.NewEncoder(os.Stdout)
+		check(enc.Encode(&defaultCfg), *quietOpt)
+		enc.Close()
+		os.Exit(0)
 	}
-	return dir, format, *quietOpt
+	if *cfgOpt != "" {
+		f, err := os.Open(*cfgOpt)
+		check(err, *quietOpt)
+		dec := yaml.NewDecoder(f)
+		check(dec.Decode(&cfg), *quietOpt)
+	}
+	return dir, *fmtOpt, *quietOpt, cfg
 }
