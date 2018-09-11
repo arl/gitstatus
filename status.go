@@ -50,11 +50,22 @@ var (
 	errUnexpectedStatus = errors.New("unexpected git status output")
 )
 
+func env() []string {
+	var env = []string{"LC_ALL=C"}
+	home, ok := os.LookupEnv("HOME")
+	if !ok {
+		return env
+	}
+	return append(env, "HOME="+home)
+}
+
 // New returns the Git Status of the current working directory.
 func New() (*Status, error) {
+	env := env()
 	// parse porcelain status
 	cmd := exec.Command("git", "status", "--porcelain", "--branch", "-z")
-	cmd.Env = append(cmd.Env, "LC_ALL=C")
+	cmd.Env = env
+
 	st := &Status{}
 	err := parseCommand(st, cmd)
 	if err != nil {
@@ -68,7 +79,7 @@ func New() (*Status, error) {
 
 	// count stash entries
 	cmd = exec.Command("git", "stash", "list")
-	cmd.Env = append(cmd.Env, "LC_ALL=C")
+	cmd.Env = env
 	var lc linecount
 	err = parseCommand(&lc, cmd)
 	if err != nil {
