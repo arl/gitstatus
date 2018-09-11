@@ -49,6 +49,7 @@ func parseOptions() (dir string, format string, quiet bool, cfg Config) {
 	if flag.NArg() > 0 {
 		dir = flag.Arg(0)
 	}
+	cfg = defaultCfg
 	if *printCfgOpt {
 		enc := yaml.NewEncoder(os.Stdout)
 		check(enc.Encode(&defaultCfg), *quietOpt)
