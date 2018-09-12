@@ -50,26 +50,12 @@ var (
 	errUnexpectedStatus = errors.New("unexpected git status output")
 )
 
-func env() []string {
-	var env = []string{"LC_ALL=C"}
-	home, ok := os.LookupEnv("HOME")
-	if !ok {
-		return env
-	}
-	return append(env, "HOME="+home)
-}
-
 // New returns the Git Status of the current working directory.
 func New() (*Status, error) {
-	env := env()
-	// parse porcelain status
-	cmd := exec.Command("git", "status", "--porcelain", "--branch", "-z")
-	cmd.Env = env
-
 	st := &Status{}
-	err := parseCommand(st, cmd)
+	err := runAndParse(st, "git", "status", "--porcelain", "--branch", "-z")
 	if err != nil {
-		return nil, wrapError(err, "can't retrieve git status")
+		return nil, err
 	}
 
 	if st.IsInitial {
@@ -78,12 +64,10 @@ func New() (*Status, error) {
 	}
 
 	// count stash entries
-	cmd = exec.Command("git", "stash", "list")
-	cmd.Env = env
 	var lc linecount
-	err = parseCommand(&lc, cmd)
+	err = runAndParse(&lc, "git", "stash", "list")
 	if err != nil {
-		return nil, wrapError(err, "can't count stash entries")
+		return nil, err
 	}
 	st.NumStashed = int(lc)
 
@@ -94,11 +78,10 @@ func New() (*Status, error) {
 		st.NumConflicts == 0
 
 	// sets other special flags and fields.
-	cmd = exec.Command("git", "rev-parse", "--git-dir", "--short", "HEAD")
 	var lines lines
-	err = parseCommand(&lines, cmd)
+	err = runAndParse(&lines, "git", "rev-parse", "--git-dir", "--short", "HEAD")
 	if err != nil || len(lines) != 2 {
-		return nil, wrapError(err, "git rev-parse error")
+		return nil, err
 	}
 	st.checkState(strings.TrimSpace(lines[0]))
 	st.HEAD = strings.TrimSpace(lines[1])
@@ -284,10 +267,6 @@ func parseCommand(dst io.ReaderFrom, cmd *exec.Cmd) error {
 	}
 
 	return errCmd(cmd.Wait(), cmd)
-}
-
-func errCmd(err error, cmd *exec.Cmd) error {
-	return wrapErrorf(err, `exec %s "%v"`, cmd.Path, strings.Join(cmd.Args, " "))
 }
 
 type linecount int

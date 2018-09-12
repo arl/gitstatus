@@ -1,6 +1,10 @@
 package gitstatus
 
-import "fmt"
+import (
+	"fmt"
+	"os/exec"
+	"strings"
+)
 
 type wrappedErr struct {
 	cause error
@@ -27,4 +31,9 @@ func wrapErrorf(err error, format string, args ...interface{}) error {
 		cause: err,
 		msg:   fmt.Sprintf(format, args...),
 	}
+}
+
+// errCmd creates an error wrapping the err, with details extracted from cmd.
+func errCmd(err error, cmd *exec.Cmd) error {
+	return wrapErrorf(err, `exec %s "%v"`, cmd.Path, strings.Join(cmd.Args, " "))
 }
