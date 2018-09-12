@@ -147,7 +147,7 @@ func TestStatusParseConflicts(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "all cases",
+			name: "conflict 1",
 			out: porcelainNZT(
 				"## HEAD (no branch)",
 				"UD unmerged, deleted by them",
@@ -157,6 +157,27 @@ func TestStatusParseConflicts(t *testing.T) {
 			want: Status{
 				IsDetached:   true,
 				NumConflicts: 3,
+			},
+		},
+		{
+			name: "conflict 2",
+			out: porcelainNZT(
+				`## HEAD (no branch)`,
+				`UU example/sudoku/main.go`,
+				`M  example/sudoku/operators_test.go`,
+				`DU pkg/engine/engine.go`,
+				`UU pkg/mt19937/mt19937.go`,
+				`UU pkg/mt19937/mt19937_test.go`,
+				`R  random/utils_test.go -> pkg/mt19937/utils_test.go`,
+				`D  random/mersenne_twister.go`,
+				`D  random/mersenne_twister_test.go`,
+				`?? TODO`,
+			),
+			want: Status{
+				IsDetached:   true,
+				NumUntracked: 1,
+				NumConflicts: 4,
+				NumStaged:    4,
 			},
 		},
 	}

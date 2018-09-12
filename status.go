@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"strings"
 )
 
@@ -108,6 +109,8 @@ func scanNilBytes(data []byte, atEOF bool) (advance int, token []byte, err error
 	return 0, nil, nil
 }
 
+var fileStatusRx = regexp.MustCompile(`^(##|[ MADRCU?!]{2}) .*$`)
+
 // ReadFrom reads and parses git porcelain status from the given reader, filling
 // the corresponding status fields.
 func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
@@ -115,17 +118,16 @@ func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 	scan.Split(scanNilBytes)
 	for scan.Scan() {
 		line := scan.Text()
-		if len(line) < 2 {
+		if !fileStatusRx.MatchString(line) {
 			return 0, errUnexpectedStatus
 		}
-
 		first, second := line[0], line[1]
 		switch {
 		case first == '#' && second == '#':
 			err = st.parseHeader(line)
 		case second == 'M':
 			st.NumModified++
-		case first == 'U':
+		case first == 'U', second == 'U':
 			st.NumConflicts++
 		case first == '?' && second == '?':
 			st.NumUntracked++
