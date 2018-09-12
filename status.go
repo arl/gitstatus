@@ -119,7 +119,7 @@ func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 	for scan.Scan() {
 		line := scan.Text()
 		if !fileStatusRx.MatchString(line) {
-			return 0, errUnexpectedStatus
+			continue
 		}
 		first, second := line[0], line[1]
 		switch {
