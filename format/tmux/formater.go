@@ -25,11 +25,11 @@ type Config struct {
 
 var DefaultCfg = Config{
 	NoRemote:   "L",
-	Branch:     "⎇  ",
-	Staged:     "● ",
+	Branch:     "⎇ ",
+	Staged:     "●",
 	Conflict:   "✖ ",
 	Modified:   "✚ ",
-	Untracked:  "… ",
+	Untracked:  "…",
 	Stashed:    "⚑ ",
 	Clean:      "✔",
 	Ahead:      "↑·",
