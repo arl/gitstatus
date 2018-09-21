@@ -73,10 +73,7 @@ func New() (*Status, error) {
 	st.NumStashed = int(lc)
 
 	// set 'clean working tree' flag
-	st.IsClean = st.NumStaged == 0 &&
-		st.NumUntracked == 0 &&
-		st.NumStashed == 0 &&
-		st.NumConflicts == 0
+	st.IsClean = st.NumStaged+st.NumConflicts+st.NumModified+st.NumStashed+st.NumUntracked == 0
 
 	// sets other special flags and fields.
 	var lines lines
