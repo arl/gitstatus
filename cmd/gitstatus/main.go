@@ -39,8 +39,7 @@ func main() {
 	}
 
 	// format and print
-	var out string
-	out, err = formater.Format(st)
+	out, err := formater.Format(st)
 	check(err, quiet)
 	fmt.Print(out)
 }
