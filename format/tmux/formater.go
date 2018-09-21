@@ -3,120 +3,187 @@ package tmux
 import (
 	"bytes"
 	"fmt"
-	"strconv"
+	"strings"
 
 	"github.com/arl/gitstatus"
 )
 
+// Config is the configuration of the Git status tmux formatter.
 type Config struct {
-	Branch     string
-	NoRemote   string
-	Ahead      string
-	Behind     string
-	HashPrefix string
+	// Symbols contains the symbols printed before the Git status components.
+	Symbols symbols
+	// Styles contains the tmux style strings for symbols and Git status
+	// components.
+	Styles styles
+}
 
-	Staged    string
-	Conflict  string
-	Modified  string
-	Untracked string
-	Stashed   string
-	Clean     string
+type symbols struct {
+	Branch     string // Branch is the string shown before local branch name.
+	HashPrefix string // HasPrefix is the string shown before a SHA1 ref.
+
+	Ahead  string // Ahead is the string shown before the ahead count for the local/upstream branch divergence.
+	Behind string // Behind is the string shown before the behind count for the local/upstream branch divergence.
+
+	Staged    string // Staged is the string shown before the count of staged files.
+	Conflict  string // Conflict is the string shown before the count of files with conflicts.
+	Modified  string // Modified is the string shown before the count of modified files.
+	Untracked string // Untracked is the string shown before the count of untracked files.
+	Stashed   string // Stashed is the string shown before the count of stash entries.
+	Clean     string // Clean is the string shown when the working tree is clean.
+}
+
+type styles struct {
+	State     string // State is the style string printed before eventual special state.
+	Branch    string // Branch is the style string printed before the local branch.
+	Remote    string // Remote is the style string printed before the upstream branch.
+	Staged    string // Staged is the style string printed before the staged files count.
+	Conflict  string // Conflict is the style string printed before the conflict count.
+	Modified  string // Modified is the style string printed before the modified files count.
+	Untracked string // Untracked is the style string printed before the untracked files count.
+	Stashed   string // Stashed is the style string printed before the stash entries count.
+	Clean     string // Clean is the style string printed before the clean symbols.
 }
 
 var DefaultCfg = Config{
-	NoRemote:   "L",
-	Branch:     "⎇ ",
-	Staged:     "●",
-	Conflict:   "✖ ",
-	Modified:   "✚ ",
-	Untracked:  "…",
-	Stashed:    "⚑ ",
-	Clean:      "✔",
-	Ahead:      "↑·",
-	Behind:     "↓·",
-	HashPrefix: ":",
+	Symbols: symbols{
+		Branch:     "⎇ ",
+		Staged:     "●",
+		Conflict:   "✖ ",
+		Modified:   "✚ ",
+		Untracked:  "…",
+		Stashed:    "⚑ ",
+		Clean:      "✔",
+		Ahead:      "↑·",
+		Behind:     "↓·",
+		HashPrefix: ":",
+	},
+	Styles: styles{
+		State:     "#[fg=red,bold]",
+		Branch:    "#[fg=white]",
+		Remote:    "#[fg=cyan]",
+		Staged:    "#[fg=green]",
+		Conflict:  "#[fg=red]",
+		Modified:  "#[fg=red]",
+		Untracked: "#[fg=magenta]",
+		Stashed:   "#[fg=cyan]",
+		Clean:     "#[fg=green]",
+	},
 }
 
-type Formater struct{ Config }
+const clear string = "#[fg=default]"
+
+type Formater struct {
+	Config
+	b  bytes.Buffer
+	st *gitstatus.Status
+}
 
 func (f *Formater) Format(st *gitstatus.Status) (string, error) {
-	b := &bytes.Buffer{}
+	f.st = st
+	f.clear()
 
 	// overall working tree state
-	if st.IsInitial {
-		fmt.Fprintf(b, "%s [no commits yet]", st.LocalBranch)
-		goto files
+	if f.st.IsInitial {
+		fmt.Fprintf(&f.b, "%s%s [no commits yet]", f.Styles.Branch, f.st.LocalBranch)
+		goto fileCounts
 	}
 
-	switch st.State {
+	f.specialState()
+	f.remote()
+
+fileCounts:
+	f.flags()
+
+	return f.b.String(), nil
+}
+
+func (f *Formater) specialState() {
+	f.clear()
+	switch f.st.State {
 	case gitstatus.Rebasing:
-		fmt.Fprintf(b, "[rebase] %s", f.currentRef(st))
+		fmt.Fprintf(&f.b, "%s[rebase] ", f.Styles.State)
 	case gitstatus.AM:
-		fmt.Fprintf(b, "[am] %s", f.currentRef(st))
+		fmt.Fprintf(&f.b, "%s[am] ", f.Styles.State)
 	case gitstatus.AMRebase:
-		fmt.Fprintf(b, "[am-rebase] %s", f.currentRef(st))
+		fmt.Fprintf(&f.b, "%s[am-rebase] ", f.Styles.State)
 	case gitstatus.Merging:
-		fmt.Fprintf(b, "[merge] %s", f.currentRef(st))
+		fmt.Fprintf(&f.b, "%s[merge] ", f.Styles.State)
 	case gitstatus.CherryPicking:
-		fmt.Fprintf(b, "[cherry-pick] %s", f.currentRef(st))
+		fmt.Fprintf(&f.b, "%s[cherry-pick] ", f.Styles.State)
 	case gitstatus.Reverting:
-		fmt.Fprintf(b, "[revert] %s", f.currentRef(st))
+		fmt.Fprintf(&f.b, "%s[revert] ", f.Styles.State)
 	case gitstatus.Bisecting:
-		fmt.Fprintf(b, "[bisect] %s", f.currentRef(st))
+		fmt.Fprintf(&f.b, "%s[bisect] ", f.Styles.State)
 	case gitstatus.Default:
-		fmt.Fprintf(b, "%s%s", f.Branch, f.currentRef(st))
+		fmt.Fprintf(&f.b, "%s%s", f.Styles.Branch, f.Symbols.Branch)
 	}
-
-	if st.RemoteBranch != "" {
-		fmt.Fprintf(b, "..%s%s", st.RemoteBranch, f.divergence(st))
-	}
-
-files:
-
-	fmt.Fprintf(b, " - ")
-	if st.IsClean {
-		b.WriteString(f.Clean)
-		goto output
-	}
-
-	if st.NumStaged != 0 {
-		fmt.Fprintf(b, "%s%d", f.Staged, st.NumStaged)
-	}
-	if st.NumConflicts != 0 {
-		fmt.Fprintf(b, "%s%d", f.Conflict, st.NumConflicts)
-	}
-	if st.NumModified != 0 {
-		fmt.Fprintf(b, "%s%d", f.Modified, st.NumModified)
-	}
-	if st.NumStashed != 0 {
-		fmt.Fprintf(b, "%s%d", f.Stashed, st.NumStashed)
-	}
-	if st.NumUntracked != 0 {
-		fmt.Fprintf(b, "%s%d", f.Untracked, st.NumUntracked)
-	}
-
-output:
-
-	return b.String(), nil
+	f.currentRef()
 }
 
-func (f *Formater) currentRef(st *gitstatus.Status) string {
-	if st.IsDetached {
-		return f.HashPrefix + st.HEAD
+func (f *Formater) remote() {
+	f.clear()
+	if f.st.RemoteBranch != "" {
+		fmt.Fprintf(&f.b, "..%s%s", f.Styles.Remote, f.st.RemoteBranch)
+		f.divergence()
 	}
-	return st.LocalBranch
 }
 
-func (f *Formater) divergence(st *gitstatus.Status) string {
-	var div string
-	if st.BehindCount != 0 {
-		div += f.Behind + strconv.Itoa(st.BehindCount)
+func (f *Formater) clear() {
+	// clear global style
+	f.b.WriteString(clear)
+}
+
+func (f *Formater) currentRef() {
+	f.clear()
+	if f.st.IsDetached {
+		fmt.Fprintf(&f.b, "%s%s", f.Symbols.HashPrefix, f.st.HEAD)
+		return
 	}
-	if st.AheadCount != 0 {
-		div = f.Ahead + strconv.Itoa(st.AheadCount)
+
+	fmt.Fprintf(&f.b, "%s", f.st.LocalBranch)
+}
+
+func (f *Formater) divergence() {
+	f.clear()
+	pref := " "
+	if f.st.BehindCount != 0 {
+		fmt.Fprintf(&f.b, " %s%d", f.Symbols.Behind, f.st.BehindCount)
+		pref = ""
 	}
-	if div != "" {
-		return " " + div
+	if f.st.AheadCount != 0 {
+		fmt.Fprintf(&f.b, "%s%s%d", pref, f.Symbols.Ahead, f.st.AheadCount)
 	}
-	return div
+}
+
+func (f *Formater) flags() {
+	f.clear()
+	f.b.WriteString(" - ")
+	if f.st.IsClean {
+		fmt.Fprintf(&f.b, "%s%s", f.Styles.Clean, f.Symbols.Clean)
+		return
+	}
+
+	var flags []string
+
+	if f.st.NumStaged != 0 {
+		flags = append(flags,
+			fmt.Sprintf("%s%s%d", f.Styles.Staged, f.Symbols.Staged, f.st.NumStaged))
+	}
+	if f.st.NumConflicts != 0 {
+		flags = append(flags,
+			fmt.Sprintf("%s%s%d", f.Styles.Conflict, f.Symbols.Conflict, f.st.NumConflicts))
+	}
+	if f.st.NumModified != 0 {
+		flags = append(flags,
+			fmt.Sprintf("%s%s%d", f.Styles.Modified, f.Symbols.Modified, f.st.NumModified))
+	}
+	if f.st.NumStashed != 0 {
+		flags = append(flags,
+			fmt.Sprintf("%s%s%d", f.Styles.Stashed, f.Symbols.Stashed, f.st.NumStashed))
+	}
+	if f.st.NumUntracked != 0 {
+		flags = append(flags,
+			fmt.Sprintf("%s%s%d", f.Styles.Untracked, f.Symbols.Untracked, f.st.NumUntracked))
+	}
+	f.b.WriteString(strings.Join(flags, " "))
 }
