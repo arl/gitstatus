@@ -23,7 +23,7 @@ type Status struct {
 	NumStaged    int // NumStaged is the number of staged files.
 	NumStashed   int // NumStashed is the number of stash entries.
 
-	HEAD         string // HEAD is the -short- SHA1 of current commit (empty in initial state).
+	HEAD         string // HEAD is the shortened SHA1 of current commit (empty in initial state).
 	LocalBranch  string // LocalBranch is the name of the local branch.
 	RemoteBranch string // RemoteBranch is the name of upstream remote branch (tracking).
 	AheadCount   int    // AheadCount reports by how many commits the local branch is ahead of its upstream branch.
