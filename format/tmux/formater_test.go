@@ -33,16 +33,19 @@ func TestFormater_flags(t *testing.T) {
 			styles: styles{
 				Modified: "StyleMod",
 				Stashed:  "StyleStash",
+				Staged:   "StyleStaged",
 			},
 			symbols: symbols{
 				Modified: "SymbolMod",
 				Stashed:  "SymbolStash",
+				Staged:   "SymbolStaged",
 			},
 			st: &gitstatus.Status{
 				NumModified: 2,
 				NumStashed:  1,
+				NumStaged:   3,
 			},
-			want: clear + " - StyleModSymbolMod2 StyleStashSymbolStash1",
+			want: clear + " - StyleStagedSymbolStaged3 StyleModSymbolMod2 StyleStashSymbolStash1",
 		},
 		{
 			name: "mixed flags 2",
