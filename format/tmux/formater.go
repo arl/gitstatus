@@ -8,6 +8,8 @@ import (
 	"github.com/arl/gitstatus"
 )
 
+const clear string = "#[fg=default]"
+
 // Config is the configuration of the Git status tmux formatter.
 type Config struct {
 	// Symbols contains the symbols printed before the Git status components.
@@ -69,8 +71,6 @@ var DefaultCfg = Config{
 		Clean:     "#[fg=green,bold]",
 	},
 }
-
-const clear string = "#[fg=default]"
 
 type Formater struct {
 	Config
