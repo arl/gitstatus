@@ -59,14 +59,14 @@ var DefaultCfg = Config{
 	},
 	Styles: styles{
 		State:     "#[fg=red,bold]",
-		Branch:    "#[fg=white]",
+		Branch:    "#[fg=white,bold]",
 		Remote:    "#[fg=cyan]",
-		Staged:    "#[fg=green]",
-		Conflict:  "#[fg=red]",
-		Modified:  "#[fg=red]",
-		Untracked: "#[fg=magenta]",
-		Stashed:   "#[fg=cyan]",
-		Clean:     "#[fg=green]",
+		Staged:    "#[fg=green,bold]",
+		Conflict:  "#[fg=red,bold]",
+		Modified:  "#[fg=red,bold]",
+		Untracked: "#[fg=magenta,bold]",
+		Stashed:   "#[fg=cyan,bold]",
+		Clean:     "#[fg=green,bold]",
 	},
 }
 
