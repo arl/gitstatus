@@ -73,3 +73,72 @@ func TestFormater_flags(t *testing.T) {
 		})
 	}
 }
+
+func TestFormater_divergence(t *testing.T) {
+	tests := []struct {
+		name    string
+		styles  styles
+		symbols symbols
+		st      *gitstatus.Status
+		want    string
+	}{
+		{
+			name: "no divergence",
+			symbols: symbols{
+				Ahead:  "↓·",
+				Behind: "↑·",
+			},
+			st: &gitstatus.Status{
+				AheadCount:  0,
+				BehindCount: 0,
+			},
+			want: clear,
+		},
+		{
+			name: "ahead only",
+			symbols: symbols{
+				Ahead:  "↓·",
+				Behind: "↑·",
+			},
+			st: &gitstatus.Status{
+				AheadCount:  4,
+				BehindCount: 0,
+			},
+			want: clear + " ↓·4",
+		},
+		{
+			name: "behind only",
+			symbols: symbols{
+				Ahead:  "↓·",
+				Behind: "↑·",
+			},
+			st: &gitstatus.Status{
+				AheadCount:  0,
+				BehindCount: 12,
+			},
+			want: clear + " ↑·12",
+		},
+		{
+			name: "diverged both ways",
+			symbols: symbols{
+				Ahead:  "↓·",
+				Behind: "↑·",
+			},
+			st: &gitstatus.Status{
+				AheadCount:  41,
+				BehindCount: 128,
+			},
+			want: clear + " ↑·128↓·41",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &Formater{
+				Config: Config{Styles: tc.styles, Symbols: tc.symbols},
+				st:     tc.st,
+			}
+			f.divergence()
+			require.EqualValues(t, tc.want, f.b.String())
+		})
+	}
+}
