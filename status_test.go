@@ -267,7 +267,6 @@ func TestStatusParseMalformed(t *testing.T) {
 		name string
 		out  []byte // git status output
 	}{
-		{name: "illegal header", out: porcelainNZT(`##`)},
 		{name: "trailing space", out: porcelainNZT(`## branch `)},
 		{name: "illformed header", out: porcelainNZT(`## branch [ahead 2`)},
 		{name: "illformed header", out: porcelainNZT(`## branch [ahead 2,`)},
