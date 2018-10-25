@@ -121,10 +121,11 @@ func TestStatusParseModified(t *testing.T) {
 				"AM added to index",
 				"RM renamed in index",
 				"CM copied in index",
+				" D deleted in index",
 			),
 			want: Status{
 				LocalBranch: "master",
-				NumModified: 5,
+				NumModified: 6,
 			},
 		},
 	}
@@ -242,11 +243,12 @@ func TestStatusParseStaged(t *testing.T) {
 				`A  "dir1/dir2/nested with carrier \nreturn"`,
 				`M  fileb`,
 				`A  newfile`,
+				`D  deleted`,
 				`?? untracked`,
 			),
 			want: Status{
 				IsDetached:   true,
-				NumStaged:    6,
+				NumStaged:    7,
 				NumUntracked: 1,
 			},
 		},

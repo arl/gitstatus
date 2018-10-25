@@ -122,10 +122,10 @@ func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 		switch {
 		case first == '#' && second == '#':
 			err = st.parseHeader(line)
-		case second == 'M':
-			st.NumModified++
 		case first == 'U', second == 'U':
 			st.NumConflicts++
+		case second == 'M', second == 'D':
+			st.NumModified++
 		case first == '?' && second == '?':
 			st.NumUntracked++
 		default:
