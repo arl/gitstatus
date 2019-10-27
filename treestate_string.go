@@ -4,6 +4,20 @@ package gitstatus
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[Default-0]
+	_ = x[Rebasing-1]
+	_ = x[AM-2]
+	_ = x[AMRebase-3]
+	_ = x[Merging-4]
+	_ = x[CherryPicking-5]
+	_ = x[Reverting-6]
+	_ = x[Bisecting-7]
+}
+
 const _TreeState_name = "DefaultRebasingAMAMRebaseMergingCherryPickingRevertingBisecting"
 
 var _TreeState_index = [...]uint8{0, 7, 15, 17, 25, 32, 45, 54, 63}
