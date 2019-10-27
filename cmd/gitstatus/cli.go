@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/arl/gitstatus/format/tmux"
-	"github.com/go-yaml/yaml"
+	"gopkg.in/yaml.v2"
 )
 
 func check(err error, quiet bool) {
