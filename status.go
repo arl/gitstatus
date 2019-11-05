@@ -52,6 +52,7 @@ var (
 // New returns the Git Status of the current working directory.
 func New() (*Status, error) {
 	st := &Status{}
+
 	err := runAndParse(st, "git", "status", "--porcelain", "--branch", "-z")
 	if err != nil {
 		return nil, err
@@ -64,23 +65,25 @@ func New() (*Status, error) {
 
 	// count stash entries
 	var lc linecount
+
 	err = runAndParse(&lc, "git", "stash", "list")
 	if err != nil {
 		return nil, err
 	}
-	st.NumStashed = int(lc)
-
-	// set 'clean working tree' flag
-	st.IsClean = st.NumStaged+st.NumConflicts+st.NumModified+st.NumStashed+st.NumUntracked == 0
 
 	// sets other special flags and fields.
 	var lines lines
+
 	err = runAndParse(&lines, "git", "rev-parse", "--git-dir", "--short", "HEAD")
 	if err != nil || len(lines) != 2 {
 		return nil, err
 	}
+
 	st.checkState(strings.TrimSpace(lines[0]))
 	st.HEAD = strings.TrimSpace(lines[1])
+	st.NumStashed = int(lc)
+	st.IsClean = st.NumStaged+st.NumConflicts+st.NumModified+st.NumStashed+st.NumUntracked == 0
+
 	return st, nil
 }
 
@@ -91,10 +94,12 @@ func scanNilBytes(data []byte, atEOF bool) (advance int, token []byte, err error
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil
 	}
+
 	if i := bytes.IndexByte(data, 0); i >= 0 {
 		// We have a full nil-terminated line.
 		return i + 1, data[0:i], nil
 	}
+
 	// If we're at EOF, we would have a final not ending with a nil byte, we
 	// won't allow that.
 	if atEOF {
@@ -111,12 +116,15 @@ var fileStatusRx = regexp.MustCompile(`^(##|[ MADRCU?!]{2}) .*$`)
 func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 	scan := bufio.NewScanner(r)
 	scan.Split(scanNilBytes)
+
 	for scan.Scan() {
 		line := scan.Text()
 		if !fileStatusRx.MatchString(line) {
 			continue
 		}
+
 		first, second := line[0], line[1]
+
 		switch {
 		case first == '#' && second == '#':
 			err = st.parseHeader(line)
@@ -178,6 +186,7 @@ func (st *Status) parseHeader(line string) error {
 // with local branch (ahead / behind count)
 func (st *Status) parseUpstream(s string) error {
 	var err error
+
 	pos := strings.IndexByte(s, ' ')
 	if pos == -1 {
 		st.RemoteBranch = s
@@ -199,8 +208,9 @@ func (st *Status) parseUpstream(s string) error {
 	default:
 		err = fmt.Errorf(`unexpected string "%s"`, s)
 	}
+
 	if err != nil {
-		return fmt.Errorf("%v: %v", errParseAheadBehind, err)
+		return fmt.Errorf("%v: %w", errParseAheadBehind, err)
 	}
 	return nil
 }
@@ -256,9 +266,11 @@ type linecount int
 func (lc *linecount) ReadFrom(r io.Reader) (n int64, err error) {
 	scan := bufio.NewScanner(r)
 	scan.Split(bufio.ScanLines)
+
 	for scan.Scan() {
 		*lc++
 	}
+
 	return int64(*lc), scan.Err()
 }
 
@@ -268,8 +280,10 @@ type lines []string
 func (l *lines) ReadFrom(r io.Reader) (n int64, err error) {
 	scan := bufio.NewScanner(r)
 	scan.Split(bufio.ScanLines)
+
 	for scan.Scan() {
 		*l = append(*l, scan.Text())
 	}
+
 	return int64(len(*l)), scan.Err()
 }
