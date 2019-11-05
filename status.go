@@ -47,7 +47,6 @@ type Status struct {
 var (
 	errParseAheadBehind = errors.New("can't parse ahead/behind count")
 	errUnexpectedHeader = errors.New("unexpected header format")
-	errUnexpectedStatus = errors.New("unexpected git status output")
 )
 
 // New returns the Git Status of the current working directory.
