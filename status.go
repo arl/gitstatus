@@ -217,30 +217,41 @@ func exists(components ...string) bool {
 	return err == nil
 }
 
+const (
+	gitDirRebaseMerge    = "rebase-merge"
+	gitDirRebaseApply    = "rebase-apply"
+	gitDirRebasing       = "rebasing"
+	gitDirApplying       = "applying"
+	gitDirMergeHead      = "MERGE_HEAD"
+	gitDirCherryPickHead = "CHERRY_PICK_HEAD"
+	gitDirRevertHead     = "REVERT_HEAD"
+	gitDirBisectLog      = "BISECT_LOG"
+)
+
 // checkState checks the current state of the working tree and sets at most one
 // special state flag accordingly.
 func (st *Status) checkState(gitdir string) {
 	st.State = Default
 	// from: git/contrib/completion/git-prompt.sh
 	switch {
-	case exists(gitdir, "rebase-merge"):
+	case exists(gitdir, gitDirRebaseMerge):
 		st.State = Rebasing
-	case exists(gitdir, "rebase-apply"):
+	case exists(gitdir, gitDirRebaseApply):
 		switch {
-		case exists(gitdir, "rebase-apply", "rebasing"):
+		case exists(gitdir, gitDirRebaseApply, gitDirRebasing):
 			st.State = Rebasing
-		case exists(gitdir, "rebase-apply", "applying"):
+		case exists(gitdir, gitDirRebaseApply, gitDirApplying):
 			st.State = AM
 		default:
 			st.State = AMRebase
 		}
-	case exists(gitdir, "MERGE_HEAD"):
+	case exists(gitdir, gitDirMergeHead):
 		st.State = Merging
-	case exists(gitdir, "CHERRY_PICK_HEAD"):
+	case exists(gitdir, gitDirCherryPickHead):
 		st.State = CherryPicking
-	case exists(gitdir, "REVERT_HEAD"):
+	case exists(gitdir, gitDirRevertHead):
 		st.State = Reverting
-	case exists(gitdir, "BISECT_LOG"):
+	case exists(gitdir, gitDirBisectLog):
 		st.State = Bisecting
 	}
 }
