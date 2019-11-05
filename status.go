@@ -136,11 +136,7 @@ func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 	}
 
-	if err = scan.Err(); err != nil {
-		return
-	}
-
-	return
+	return 0, scan.Err()
 }
 
 func (st *Status) parseHeader(line string) error {
