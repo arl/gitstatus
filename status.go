@@ -16,32 +16,38 @@ import (
 
 // Status represents the status of a Git working tree directory.
 type Status struct {
-	NumModified  int // NumModified is the number of modified files.
-	NumConflicts int // NumConflicts is the number of unmerged files.
-	NumUntracked int // NumUntracked is the number of untracked files.
-	NumStaged    int // NumStaged is the number of staged files.
-	NumStashed   int // NumStashed is the number of stash entries.
+	porcelain
 
-	HEAD         string // HEAD is the shortened SHA1 of current commit (empty in initial state).
-	LocalBranch  string // LocalBranch is the name of the local branch.
-	RemoteBranch string // RemoteBranch is the name of upstream remote branch (tracking).
-	AheadCount   int    // AheadCount reports by how many commits the local branch is ahead of its upstream branch.
-	BehindCount  int    // BehindCount reports by how many commits the local branch is behind its upstream branch.
+	NumStashed int // NumStashed is the number of stash entries.
+
+	HEAD string // HEAD is the shortened SHA1 of current commit (empty in initial state).
 
 	// State indicates the state of the working tree.
 	State TreeState
 
-	// IsInitial reports wether the working tree is in its initial state (no
-	// commit have been performed yet).
-	IsInitial bool
+	// IsClean reports wether the working tree is in a clean state (i.e empty
+	// staging area, no conflicts, no stash entries, no untracked files).
+	IsClean bool
+}
+
+type porcelain struct {
+	NumModified  int // NumModified is the number of modified files.
+	NumConflicts int // NumConflicts is the number of unmerged files.
+	NumUntracked int // NumUntracked is the number of untracked files.
+	NumStaged    int // NumStaged is the number of staged files.
 
 	// IsDetached reports wether HEAD is not associated to any branch
 	// (detached).
 	IsDetached bool
 
-	// IsClean reports wether the working tree is in a clean state (i.e empty
-	// staging area, no conflicts, no stash entries, no untracked files).
-	IsClean bool
+	// IsInitial reports wether the working tree is in its initial state (no
+	// commit have been performed yet).
+	IsInitial bool
+
+	LocalBranch  string // LocalBranch is the name of the local branch.
+	RemoteBranch string // RemoteBranch is the name of upstream remote branch (tracking).
+	AheadCount   int    // AheadCount reports by how many commits the local branch is ahead of its upstream branch.
+	BehindCount  int    // BehindCount reports by how many commits the local branch is behind its upstream branch.
 }
 
 var (
@@ -53,7 +59,7 @@ var (
 func New() (*Status, error) {
 	st := &Status{}
 
-	err := runAndParse(st, "git", "status", "--porcelain", "--branch", "-z")
+	err := runAndParse(&st.porcelain, "git", "status", "--porcelain", "--branch", "-z")
 	if err != nil {
 		return nil, err
 	}
@@ -111,12 +117,12 @@ func scanNilBytes(data []byte, atEOF bool) (advance int, token []byte, err error
 
 var fileStatusRx = regexp.MustCompile(`^(##|[ MADRCU?!]{2}) .*$`)
 
-// ReadFrom reads and parses git porcelain status from the given reader, filling
-// the corresponding status fields.
-func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
+// parseStatus parses porcelain status and fills it with r.
+func (p *porcelain) parseFrom(r io.Reader) error {
 	scan := bufio.NewScanner(r)
 	scan.Split(scanNilBytes)
 
+	var err error
 	for scan.Scan() {
 		line := scan.Text()
 		if !fileStatusRx.MatchString(line) {
@@ -127,26 +133,26 @@ func (st *Status) ReadFrom(r io.Reader) (n int64, err error) {
 
 		switch {
 		case first == '#' && second == '#':
-			err = st.parseHeader(line)
+			err = p.parseHeader(line)
 		case first == 'U', second == 'U':
-			st.NumConflicts++
+			p.NumConflicts++
 		case second == 'M', second == 'D':
-			st.NumModified++
+			p.NumModified++
 		case first == '?' && second == '?':
-			st.NumUntracked++
+			p.NumUntracked++
 		default:
-			st.NumStaged++
+			p.NumStaged++
 		}
 
 		if err != nil {
-			return 0, err
+			return err
 		}
 	}
 
-	return 0, scan.Err()
+	return scan.Err()
 }
 
-func (st *Status) parseHeader(line string) error {
+func (p *porcelain) parseHeader(line string) error {
 	const (
 		initialPrefix = "## No commits yet on "
 		detachedStr   = "## HEAD (no branch)"
@@ -154,10 +160,10 @@ func (st *Status) parseHeader(line string) error {
 
 	switch {
 	case line == detachedStr:
-		st.IsDetached = true
+		p.IsDetached = true
 	case strings.HasPrefix(line, initialPrefix):
-		st.IsInitial = true
-		st.LocalBranch = line[len(initialPrefix):]
+		p.IsInitial = true
+		p.LocalBranch = line[len(initialPrefix):]
 	default:
 		// regular branch[...remote] output, with or without ahead/behind counts
 		if len(line) < 4 {
@@ -172,10 +178,10 @@ func (st *Status) parseHeader(line string) error {
 			if strings.IndexByte(line[3:], ' ') != -1 {
 				return errUnexpectedHeader
 			}
-			st.LocalBranch = line[3:]
+			p.LocalBranch = line[3:]
 		} else {
-			st.LocalBranch = line[3:pos]
-			st.parseUpstream(line[pos+3:])
+			p.LocalBranch = line[3:pos]
+			p.parseUpstream(line[pos+3:])
 		}
 	}
 
@@ -184,15 +190,15 @@ func (st *Status) parseHeader(line string) error {
 
 // parseUpstream parses the remote branch name and if present, its divergence
 // with local branch (ahead / behind count)
-func (st *Status) parseUpstream(s string) error {
+func (p *porcelain) parseUpstream(s string) error {
 	var err error
 
 	pos := strings.IndexByte(s, ' ')
 	if pos == -1 {
-		st.RemoteBranch = s
+		p.RemoteBranch = s
 		return nil
 	}
-	st.RemoteBranch = s[:pos]
+	p.RemoteBranch = s[:pos]
 	s = strings.Trim(s[pos+1:], "[]")
 
 	hasAhead := strings.Contains(s, "ahead")
@@ -200,11 +206,11 @@ func (st *Status) parseUpstream(s string) error {
 
 	switch {
 	case hasAhead && hasBehind:
-		_, err = fmt.Sscanf(s, "ahead %d, behind %d", &st.AheadCount, &st.BehindCount)
+		_, err = fmt.Sscanf(s, "ahead %d, behind %d", &p.AheadCount, &p.BehindCount)
 	case hasAhead:
-		_, err = fmt.Sscanf(s, "ahead %d", &st.AheadCount)
+		_, err = fmt.Sscanf(s, "ahead %d", &p.AheadCount)
 	case hasBehind:
-		_, err = fmt.Sscanf(s, "behind %d", &st.BehindCount)
+		_, err = fmt.Sscanf(s, "behind %d", &p.BehindCount)
 	default:
 		err = fmt.Errorf(`unexpected string "%s"`, s)
 	}
@@ -262,8 +268,8 @@ func (st *Status) checkState(gitdir string) {
 
 type linecount int
 
-// ReadFrom reads from r, counting the number of lines.
-func (lc *linecount) ReadFrom(r io.Reader) (n int64, err error) {
+// parseFrom counts the number of lines by reading from r.
+func (lc *linecount) parseFrom(r io.Reader) error {
 	scan := bufio.NewScanner(r)
 	scan.Split(bufio.ScanLines)
 
@@ -271,13 +277,13 @@ func (lc *linecount) ReadFrom(r io.Reader) (n int64, err error) {
 		*lc++
 	}
 
-	return int64(*lc), scan.Err()
+	return scan.Err()
 }
 
 type lines []string
 
-// ReadFrom reads from r, appending string to lines for each line in r.
-func (l *lines) ReadFrom(r io.Reader) (n int64, err error) {
+// parseFrom appends to itself the lines it finds by reading r.
+func (l *lines) parseFrom(r io.Reader) error {
 	scan := bufio.NewScanner(r)
 	scan.Split(bufio.ScanLines)
 
@@ -285,5 +291,5 @@ func (l *lines) ReadFrom(r io.Reader) (n int64, err error) {
 		*l = append(*l, scan.Text())
 	}
 
-	return int64(len(*l)), scan.Err()
+	return scan.Err()
 }

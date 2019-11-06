@@ -11,7 +11,11 @@ import (
 
 var env []string
 
-func runAndParse(r io.ReaderFrom, prog string, args ...string) error {
+type parserFrom interface {
+	parseFrom(r io.Reader) error
+}
+
+func runAndParse(p parserFrom, prog string, args ...string) error {
 	if env == nil {
 		// cache env
 		env = []string{"LC_ALL=C"}
@@ -31,7 +35,7 @@ func runAndParse(r io.ReaderFrom, prog string, args ...string) error {
 	}
 
 	rbuf := bytes.NewReader(buf)
-	if _, err := r.ReadFrom(rbuf); err != nil {
+	if err := p.parseFrom(rbuf); err != nil {
 		return fmt.Errorf("exec %s '%v': %w", cmd.Path, strings.Join(args, " "), err)
 	}
 
