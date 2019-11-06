@@ -16,7 +16,7 @@ import (
 
 // Status represents the status of a Git working tree directory.
 type Status struct {
-	porcelain
+	Porcelain
 
 	NumStashed int // NumStashed is the number of stash entries.
 
@@ -30,7 +30,8 @@ type Status struct {
 	IsClean bool
 }
 
-type porcelain struct {
+// Porcelain holds the Git status variables extracted from calling git status --porcelain.
+type Porcelain struct {
 	NumModified  int // NumModified is the number of modified files.
 	NumConflicts int // NumConflicts is the number of unmerged files.
 	NumUntracked int // NumUntracked is the number of untracked files.
@@ -59,7 +60,7 @@ var (
 func New() (*Status, error) {
 	st := &Status{}
 
-	err := runAndParse(&st.porcelain, "git", "status", "--porcelain", "--branch", "-z")
+	err := runAndParse(&st.Porcelain, "git", "status", "--porcelain", "--branch", "-z")
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +119,7 @@ func scanNilBytes(data []byte, atEOF bool) (advance int, token []byte, err error
 var fileStatusRx = regexp.MustCompile(`^(##|[ MADRCU?!]{2}) .*$`)
 
 // parseStatus parses porcelain status and fills it with r.
-func (p *porcelain) parseFrom(r io.Reader) error {
+func (p *Porcelain) parseFrom(r io.Reader) error {
 	scan := bufio.NewScanner(r)
 	scan.Split(scanNilBytes)
 
@@ -152,7 +153,7 @@ func (p *porcelain) parseFrom(r io.Reader) error {
 	return scan.Err()
 }
 
-func (p *porcelain) parseHeader(line string) error {
+func (p *Porcelain) parseHeader(line string) error {
 	const (
 		initialPrefix = "## No commits yet on "
 		detachedStr   = "## HEAD (no branch)"
@@ -190,7 +191,7 @@ func (p *porcelain) parseHeader(line string) error {
 
 // parseUpstream parses the remote branch name and if present, its divergence
 // with local branch (ahead / behind count)
-func (p *porcelain) parseUpstream(s string) error {
+func (p *Porcelain) parseUpstream(s string) error {
 	var err error
 
 	pos := strings.IndexByte(s, ' ')
