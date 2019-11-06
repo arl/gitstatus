@@ -16,7 +16,7 @@ func TestStatusParseHeaders(t *testing.T) {
 	tests := []struct {
 		name    string
 		out     []byte // git status output
-		want    Status
+		want    Porcelain
 		wantErr error
 	}{
 		{
@@ -24,7 +24,7 @@ func TestStatusParseHeaders(t *testing.T) {
 			out: porcelainNZT(
 				"## master...origin/master",
 			),
-			want: Status{
+			want: Porcelain{
 				LocalBranch:  "master",
 				RemoteBranch: "origin/master",
 			},
@@ -34,7 +34,7 @@ func TestStatusParseHeaders(t *testing.T) {
 			out: porcelainNZT(
 				"## master",
 			),
-			want: Status{
+			want: Porcelain{
 				LocalBranch:  "master",
 				RemoteBranch: "",
 			},
@@ -44,7 +44,7 @@ func TestStatusParseHeaders(t *testing.T) {
 			out: porcelainNZT(
 				"## feature/123/a...upstream/feature/123/a [ahead 3]",
 			),
-			want: Status{
+			want: Porcelain{
 				LocalBranch:  "feature/123/a",
 				RemoteBranch: "upstream/feature/123/a",
 				AheadCount:   3,
@@ -55,7 +55,7 @@ func TestStatusParseHeaders(t *testing.T) {
 			out: porcelainNZT(
 				"## feature/123/a...upstream/feature/123/a [behind 2]",
 			),
-			want: Status{
+			want: Porcelain{
 				LocalBranch:  "feature/123/a",
 				RemoteBranch: "upstream/feature/123/a",
 				BehindCount:  2,
@@ -66,7 +66,7 @@ func TestStatusParseHeaders(t *testing.T) {
 			out: porcelainNZT(
 				"## feature/123/a...upstream/feature/123/a [ahead 26, behind 2]",
 			),
-			want: Status{
+			want: Porcelain{
 				LocalBranch:  "feature/123/a",
 				RemoteBranch: "upstream/feature/123/a",
 				AheadCount:   26,
@@ -78,7 +78,7 @@ func TestStatusParseHeaders(t *testing.T) {
 			out: porcelainNZT(
 				"## No commits yet on thisbranch",
 			),
-			want: Status{
+			want: Porcelain{
 				LocalBranch: "thisbranch",
 				IsInitial:   true,
 			},
@@ -88,7 +88,7 @@ func TestStatusParseHeaders(t *testing.T) {
 			out: porcelainNZT(
 				"## HEAD (no branch)",
 			),
-			want: Status{
+			want: Porcelain{
 				IsDetached: true,
 			},
 		},
@@ -96,10 +96,8 @@ func TestStatusParseHeaders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Status{}
-			r := bytes.NewReader(tt.out)
-			_, err := got.ReadFrom(r)
-			assert.Equal(t, tt.wantErr, err)
+			got := &Porcelain{}
+			assert.Equal(t, tt.wantErr, got.parseFrom(bytes.NewReader(tt.out)))
 			assert.Equal(t, tt.want, *got)
 		})
 	}
@@ -109,7 +107,7 @@ func TestStatusParseModified(t *testing.T) {
 	tests := []struct {
 		name    string
 		out     []byte // git status output
-		want    Status
+		want    Porcelain
 		wantErr error
 	}{
 		{
@@ -123,7 +121,7 @@ func TestStatusParseModified(t *testing.T) {
 				"CM copied in index",
 				" D deleted in index",
 			),
-			want: Status{
+			want: Porcelain{
 				LocalBranch: "master",
 				NumModified: 6,
 			},
@@ -131,11 +129,9 @@ func TestStatusParseModified(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Status{}
-			r := bytes.NewReader(tt.out)
-			_, err := got.ReadFrom(r)
-			assert.Equal(t, err, tt.wantErr)
-			assert.Equal(t, *got, tt.want)
+			got := &Porcelain{}
+			assert.Equal(t, tt.wantErr, got.parseFrom(bytes.NewReader(tt.out)))
+			assert.Equal(t, tt.want, *got)
 		})
 	}
 }
@@ -144,7 +140,7 @@ func TestStatusParseConflicts(t *testing.T) {
 	tests := []struct {
 		name    string
 		out     []byte // git status output
-		want    Status
+		want    Porcelain
 		wantErr error
 	}{
 		{
@@ -155,7 +151,7 @@ func TestStatusParseConflicts(t *testing.T) {
 				"UA unmerged, added by them",
 				"UU unmerged, both modified",
 			),
-			want: Status{
+			want: Porcelain{
 				IsDetached:   true,
 				NumConflicts: 3,
 			},
@@ -174,7 +170,7 @@ func TestStatusParseConflicts(t *testing.T) {
 				`D  random/mersenne_twister_test.go`,
 				`?? TODO`,
 			),
-			want: Status{
+			want: Porcelain{
 				IsDetached:   true,
 				NumUntracked: 1,
 				NumConflicts: 4,
@@ -184,11 +180,9 @@ func TestStatusParseConflicts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Status{}
-			r := bytes.NewReader(tt.out)
-			_, err := got.ReadFrom(r)
-			assert.Equal(t, err, tt.wantErr)
-			assert.Equal(t, *got, tt.want)
+			got := &Porcelain{}
+			assert.Equal(t, tt.wantErr, got.parseFrom(bytes.NewReader(tt.out)))
+			assert.Equal(t, tt.want, *got)
 		})
 	}
 }
@@ -197,7 +191,7 @@ func TestStatusParseUntracked(t *testing.T) {
 	tests := []struct {
 		name    string
 		out     []byte // git status output
-		want    Status
+		want    Porcelain
 		wantErr error
 	}{
 		{
@@ -209,7 +203,7 @@ func TestStatusParseUntracked(t *testing.T) {
 				`?? "dir1/dir2/nested with backslash\\"`,
 				`?? "dir1/dir2/nested with carrier \nreturn"`,
 			),
-			want: Status{
+			want: Porcelain{
 				IsDetached:   true,
 				NumUntracked: 4,
 			},
@@ -217,11 +211,9 @@ func TestStatusParseUntracked(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Status{}
-			r := bytes.NewReader(tt.out)
-			_, err := got.ReadFrom(r)
-			assert.Equal(t, err, tt.wantErr)
-			assert.Equal(t, *got, tt.want)
+			got := &Porcelain{}
+			assert.Equal(t, tt.wantErr, got.parseFrom(bytes.NewReader(tt.out)))
+			assert.Equal(t, tt.want, *got)
 		})
 	}
 }
@@ -230,7 +222,7 @@ func TestStatusParseStaged(t *testing.T) {
 	tests := []struct {
 		name    string
 		out     []byte // git status output
-		want    Status
+		want    Porcelain
 		wantErr error
 	}{
 		{
@@ -246,7 +238,7 @@ func TestStatusParseStaged(t *testing.T) {
 				`D  deleted`,
 				`?? untracked`,
 			),
-			want: Status{
+			want: Porcelain{
 				IsDetached:   true,
 				NumStaged:    7,
 				NumUntracked: 1,
@@ -255,11 +247,9 @@ func TestStatusParseStaged(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Status{}
-			r := bytes.NewReader(tt.out)
-			_, err := got.ReadFrom(r)
-			assert.Equal(t, err, tt.wantErr)
-			assert.Equal(t, *got, tt.want)
+			got := &Porcelain{}
+			assert.Equal(t, tt.wantErr, got.parseFrom(bytes.NewReader(tt.out)))
+			assert.Equal(t, tt.want, *got)
 		})
 	}
 }
@@ -276,10 +266,8 @@ func TestStatusParseMalformed(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Status{}
-			r := bytes.NewReader(tt.out)
-			_, err := got.ReadFrom(r)
-			assert.Truef(t, err != nil, "want err != nil, got err = %v", err)
+			got := &Porcelain{}
+			assert.Error(t, got.parseFrom(bytes.NewReader(tt.out)))
 		})
 	}
 }
@@ -298,11 +286,8 @@ func TestLineCount(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(t.Name(), func(t *testing.T) {
 			var lc linecount
-			r := bytes.NewBufferString(tc.input)
-			n, err := lc.ReadFrom(r)
-			assert.NoErrorf(t, err, "want err = nil, got err = %s", err)
-			assert.Equalf(t, tc.nlines, int64(lc), "nlines != lc, %d != %d, want ==", tc.nlines, lc)
-			assert.Equalf(t, tc.nlines, n, "nlines != n, %d != %d, want ==", tc.nlines, n)
+			assert.NoError(t, lc.parseFrom(bytes.NewBufferString(tc.input)))
+			assert.EqualValues(t, tc.nlines, lc)
 		})
 	}
 }
