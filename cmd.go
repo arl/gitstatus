@@ -18,7 +18,10 @@ type parserFrom interface {
 func runAndParse(p parserFrom, prog string, args ...string) error {
 	if env == nil {
 		// cache env
-		env = []string{"LC_ALL=C"}
+		env = []string{
+			"LC_ALL=C",             // override any user-specific localization
+			"GIT_OPTIONAL_LOCKS=0", // disable operations requiring locks
+		}
 
 		home, ok := os.LookupEnv("HOME")
 		if ok {
