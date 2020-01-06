@@ -1,0 +1,2 @@
+ignore:
+  - "treestate_string.go"  # generated code
