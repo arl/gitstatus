@@ -5,6 +5,7 @@ package gitstatus
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -57,10 +58,18 @@ var (
 )
 
 // New returns the Git Status of the current working directory.
-func New() (*Status, error) {
+func New() (*Status, error) { return new(context.Background()) }
+
+// NewWithContext is likes New but includes a context.
+//
+// The provided context is used to stop retrieving git status if the context
+// becomes done before all calls to git have completed.
+func NewWithContext(ctx context.Context) (*Status, error) { return new(ctx) }
+
+func new(ctx context.Context) (*Status, error) {
 	st := &Status{}
 
-	err := runAndParse(&st.Porcelain, "git", "status", "--porcelain", "--branch", "-z")
+	err := runAndParse(ctx, &st.Porcelain, "git", "status", "--porcelain", "--branch", "-z")
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +82,7 @@ func New() (*Status, error) {
 	// count stash entries
 	var lc linecount
 
-	err = runAndParse(&lc, "git", "stash", "list")
+	err = runAndParse(ctx, &lc, "git", "stash", "list")
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +90,7 @@ func New() (*Status, error) {
 	// sets other special flags and fields.
 	var lines lines
 
-	err = runAndParse(&lines, "git", "rev-parse", "--git-dir", "--short", "HEAD")
+	err = runAndParse(ctx, &lines, "git", "rev-parse", "--git-dir", "--short", "HEAD")
 	if err != nil || len(lines) != 2 {
 		return nil, err
 	}
