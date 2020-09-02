@@ -17,6 +17,12 @@ type parserFrom interface {
 }
 
 func runAndParse(ctx context.Context, p parserFrom, prog string, args ...string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	if env == nil {
 		// cache env
 		env = []string{
