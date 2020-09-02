@@ -2,6 +2,7 @@ package gitstatus
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -15,7 +16,13 @@ type parserFrom interface {
 	parseFrom(r io.Reader) error
 }
 
-func runAndParse(p parserFrom, prog string, args ...string) error {
+func runAndParse(ctx context.Context, p parserFrom, prog string, args ...string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	if env == nil {
 		// cache env
 		env = []string{
@@ -29,7 +36,7 @@ func runAndParse(p parserFrom, prog string, args ...string) error {
 		}
 	}
 	// parse porcelain status
-	cmd := exec.Command(prog, args...)
+	cmd := exec.CommandContext(ctx, prog, args...)
 	cmd.Env = env
 
 	buf, err := cmd.Output()
