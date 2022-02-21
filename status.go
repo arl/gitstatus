@@ -26,7 +26,7 @@ type Status struct {
 	// State indicates the state of the working tree.
 	State TreeState
 
-	// IsClean reports wether the working tree is in a clean state (i.e empty
+	// IsClean reports whether the working tree is in a clean state (i.e empty
 	// staging area, no conflicts, no stash entries, no untracked files).
 	IsClean bool
 }
@@ -38,11 +38,11 @@ type Porcelain struct {
 	NumUntracked int // NumUntracked is the number of untracked files.
 	NumStaged    int // NumStaged is the number of staged files.
 
-	// IsDetached reports wether HEAD is not associated to any branch
+	// IsDetached reports whether HEAD is not associated to any branch
 	// (detached).
 	IsDetached bool
 
-	// IsInitial reports wether the working tree is in its initial state (no
+	// IsInitial reports whether the working tree is in its initial state (no
 	// commit have been performed yet).
 	IsInitial bool
 
