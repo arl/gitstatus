@@ -115,7 +115,7 @@ func TestStatusParseModified(t *testing.T) {
 			out: porcelainNZT(
 				"## master",
 				" M index not updated",
-				"MM index updated",
+				"MM staged and modified",
 				"AM added to index",
 				"RM renamed in index",
 				"CM copied in index",
@@ -124,6 +124,19 @@ func TestStatusParseModified(t *testing.T) {
 			want: Porcelain{
 				LocalBranch: "master",
 				NumModified: 6,
+				NumStaged:   1,
+			},
+		},
+		{
+			name: "issue-11",
+			out: porcelainNZT(
+				"## issue-11/staged-hunks",
+				"MM gitmux.go",
+			),
+			want: Porcelain{
+				LocalBranch: "issue-11/staged-hunks",
+				NumModified: 1,
+				NumStaged:   1,
 			},
 		},
 	}
