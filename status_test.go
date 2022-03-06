@@ -124,7 +124,7 @@ func TestStatusParseModified(t *testing.T) {
 			want: Porcelain{
 				LocalBranch: "master",
 				NumModified: 6,
-				NumStaged:   1,
+				NumStaged:   2,
 			},
 		},
 		{
@@ -135,6 +135,18 @@ func TestStatusParseModified(t *testing.T) {
 			),
 			want: Porcelain{
 				LocalBranch: "issue-11/staged-hunks",
+				NumModified: 1,
+				NumStaged:   1,
+			},
+		},
+		{
+			name: "added then modified",
+			out: porcelainNZT(
+				"## main",
+				"AM file",
+			),
+			want: Porcelain{
+				LocalBranch: "main",
 				NumModified: 1,
 				NumStaged:   1,
 			},
