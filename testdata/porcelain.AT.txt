@@ -1,0 +1,21 @@
+exec git init
+exec git config user.email i@example.com
+exec git config user.name someone
+
+exec git add file
+exec git commit -m 'commit'
+exec ln -s file link
+exec git add link
+rm link
+exec touch link
+
+exec git status --porcelain --branch 
+stdout '## master\nAT link'
+
+gitstatus
+stdout '&{Porcelain:{NumModified:1 NumConflicts:0 NumUntracked:0 NumStaged:1 IsDetached:false IsInitial:false LocalBranch:master RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:false}'
+! stderr .
+
+-- file --
+line1
+line2

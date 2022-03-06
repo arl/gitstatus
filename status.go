@@ -125,7 +125,7 @@ func scanNilBytes(data []byte, atEOF bool) (advance int, token []byte, err error
 	return 0, nil, nil
 }
 
-var fileStatusRx = regexp.MustCompile(`^(##|[ MADRCU?!]{2}) .*$`)
+var fileStatusRx = regexp.MustCompile(`^(##|[ MADRCUT?!]{2}) .*$`)
 
 // parseStatus parses porcelain status and fills it with r.
 func (p *Porcelain) parseFrom(r io.Reader) error {
