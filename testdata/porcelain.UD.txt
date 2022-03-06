@@ -1,0 +1,29 @@
+exec git init
+exec git config user.email i@example.com
+exec git config user.name someone
+
+exec git add file
+exec git commit -m 'initial commit'
+
+# On 'master', add a second line
+exec sed -i '1 a\line2' file
+exec git add file
+exec git commit -m 'add line2'
+
+# On 'branch', remove the file
+exec git checkout -b branch HEAD~1
+exec git rm file
+exec git commit -m 'remove file'
+
+# Merge branch into master
+exec git checkout master
+! exec git merge branch
+exec git status --porcelain --branch 
+stdout '## master\nUD file'
+
+gitstatus
+stdout '&{Porcelain:{NumModified:0 NumConflicts:1 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:master RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Merging IsClean:false}'
+! stderr .
+
+-- file --
+line1
