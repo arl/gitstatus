@@ -150,7 +150,8 @@ func (p *Porcelain) parseFrom(r io.Reader) error {
 			first == 'M' && second == 'M',
 			first == 'M' && second == 'D',
 			first == 'R' && second == 'M',
-			first == 'R' && second == 'D':
+			first == 'R' && second == 'D',
+			first == 'A' && second == 'T':
 			p.NumModified++
 			p.NumStaged++
 		case second == 'M', second == 'D':

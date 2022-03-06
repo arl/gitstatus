@@ -124,7 +124,7 @@ func TestStatusParseModified(t *testing.T) {
 			want: Porcelain{
 				LocalBranch: "master",
 				NumModified: 6,
-				NumStaged:   2,
+				NumStaged:   3,
 			},
 		},
 		{
