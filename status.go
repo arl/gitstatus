@@ -28,6 +28,7 @@ type Status struct {
 
 	// IsClean reports whether the working tree is in a clean state (i.e empty
 	// staging area, no conflicts, no stash entries, no untracked files).
+	// TODO: should also add that we're not in detached state
 	IsClean bool
 }
 
