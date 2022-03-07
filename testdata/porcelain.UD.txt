@@ -19,7 +19,7 @@ exec git commit -m 'remove file'
 # Merge branch into main
 exec git checkout main
 ! exec git merge branch
-exec git status --porcelain --branch 
+exec git status --porcelain --branch
 stdout '## main\nUD file'
 
 gitstatus

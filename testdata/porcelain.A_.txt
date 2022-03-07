@@ -5,7 +5,7 @@ exec git checkout -b main
 
 exec git add file
 
-exec git status --porcelain --branch 
+exec git status --porcelain --branch
 stdout '## No commits yet on .+\nA  file'
 
 gitstatus

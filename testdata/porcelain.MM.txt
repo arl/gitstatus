@@ -9,7 +9,7 @@ exec sed -i '1d' file
 exec git add file
 exec sed -i '1 i\line1' file
 
-exec git status --porcelain --branch 
+exec git status --porcelain --branch
 stdout '## main\nMM file'
 
 gitstatus

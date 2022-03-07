@@ -7,7 +7,7 @@ exec git add file
 exec git commit -m 'commit'
 exec git mv file newfile
 
-exec git status --porcelain --branch 
+exec git status --porcelain --branch
 stdout '## main\nR  file'
 
 gitstatus

@@ -10,7 +10,7 @@ exec git add link
 rm link
 exec touch link
 
-exec git status --porcelain --branch 
+exec git status --porcelain --branch
 stdout '## main\nAT link'
 
 gitstatus

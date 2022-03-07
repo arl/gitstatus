@@ -17,7 +17,7 @@ exec git commit -m 'rename file1 to file2'
 
 # Merge main into branch
 ! exec git merge main
-exec git status --porcelain --branch 
+exec git status --porcelain --branch
 stdout '## branch\nAU file2'
 
 gitstatus

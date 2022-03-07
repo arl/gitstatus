@@ -9,7 +9,7 @@ exec git rm file
 exec touch file
 exec git add file
 
-exec git status --porcelain --branch 
+exec git status --porcelain --branch
 stdout '## main\nM  file'
 
 gitstatus
