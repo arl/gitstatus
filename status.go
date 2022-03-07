@@ -144,7 +144,8 @@ func (p *Porcelain) parseFrom(r io.Reader) error {
 		switch {
 		case first == '#' && second == '#':
 			err = p.parseHeader(line)
-		case first == 'U', second == 'U':
+		case first == 'U', second == 'U',
+			first == 'A' && second == 'A':
 			p.NumConflicts++
 		case first == 'A' && second == 'M',
 			first == 'M' && second == 'M',

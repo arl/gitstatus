@@ -1,0 +1,38 @@
+exec git init
+exec git config user.email i@example.com
+exec git config user.name someone
+
+# We need an initial commit
+exec git commit -m 'initial commit' --allow-empty
+
+# On 'master', add line1 into a file
+cp file1 file
+exec git add file
+exec git commit -m 'add line1 into file'
+
+# On 'branch', remove the file
+exec git checkout -b branch HEAD~1
+cp file2 file
+exec git add file
+exec git commit -m 'add line2 into file'
+
+# Merge master into branch
+! exec git merge master
+exec git status --porcelain --branch 
+stdout '## branch\nAA file'
+
+gitstatus
+stdout '&{Porcelain:{NumModified:0 NumConflicts:1 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:branch RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Merging IsClean:false}'
+! stderr .
+
+-- file1 --
+line1
+
+-- file2 --
+line2
+
+-- .gitignore --
+file1
+file2
+# Ignore .gitignore so it doesn't show in git status 
+.gitignore
