@@ -1,8 +1,9 @@
 exec git init
 exec git config user.email i@example.com
 exec git config user.name someone
+exec git checkout -b main
 
-# On 'master', add a second line
+# On 'main', add a second line
 exec git add file
 exec git commit -m 'initial commit'
 exec sed -i '2 a\line4' file
@@ -16,14 +17,18 @@ exec sed -i '2 a\line3' file
 exec git add file
 exec git commit -m 'line 3'
 
-# Merge master into branch
-! exec git merge master
+# Merge main into branch
+! exec git merge main
 exec git status --porcelain --branch 
 stdout '## branch\nUU file'
 
 gitstatus
 stdout '&{Porcelain:{NumModified:0 NumConflicts:1 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:branch RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Merging IsClean:false}'
 ! stderr .
+
+# Perform manual merge
+#exec sed -i  -e 7d -e 5d -e 3d file
+#exec git commit -m 'merge commit'
 
 -- file --
 line1

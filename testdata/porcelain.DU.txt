@@ -1,11 +1,12 @@
 exec git init
 exec git config user.email i@example.com
 exec git config user.name someone
+exec git checkout -b main
 
 exec git add file
 exec git commit -m 'initial commit'
 
-# On 'master', add a second line
+# On 'main', add a second line
 exec sed -i '1 a\line2' file
 exec git add file
 exec git commit -m 'add line2'
@@ -15,8 +16,8 @@ exec git checkout -b branch HEAD~1
 exec git rm file
 exec git commit -m 'remove file'
 
-# Merge master into branch
-! exec git merge master
+# Merge main into branch
+! exec git merge main
 exec git status --porcelain --branch 
 stdout '## branch\nDU file'
 

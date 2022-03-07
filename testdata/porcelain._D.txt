@@ -1,16 +1,17 @@
 exec git init
 exec git config user.email i@example.com
 exec git config user.name someone
+exec git checkout -b main
 
 exec git add file
 exec git commit -m 'commit'
 rm file
 
 exec git status --porcelain --branch 
-stdout '## master\n D file'
+stdout '## main\n D file'
 
 gitstatus
-stdout '&{Porcelain:{NumModified:1 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:master RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:false}'
+stdout '&{Porcelain:{NumModified:1 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:false}'
 ! stderr .
 
 -- file --

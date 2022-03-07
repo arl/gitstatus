@@ -1,11 +1,12 @@
 exec git init
 exec git config user.email i@example.com
 exec git config user.name someone
+exec git checkout -b main
 
 # We need an initial commit
 exec git commit -m 'initial commit' --allow-empty
 
-# On 'master', add line1 into a file
+# On 'main', add line1 into a file
 cp file1 file
 exec git add file
 exec git commit -m 'add line1 into file'
@@ -16,9 +17,9 @@ cp file2 file
 exec git add file
 exec git commit -m 'add line2 into file'
 
-# Merge master into branch
-! exec git merge master
-exec git status --porcelain --branch 
+# Merge main into branch
+! exec git merge main
+exec git status --porcelain --branch
 stdout '## branch\nAA file'
 
 gitstatus
@@ -34,5 +35,5 @@ line2
 -- .gitignore --
 file1
 file2
-# Ignore .gitignore so it doesn't show in git status 
+# Ignore .gitignore so it doesn't show in git status
 .gitignore
