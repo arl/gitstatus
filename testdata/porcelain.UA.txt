@@ -1,0 +1,34 @@
+exec git init
+exec git config user.email i@example.com
+exec git config user.name someone
+exec git checkout -b main
+
+exec git add file1
+exec git commit -m initial
+
+# On 'main' remove file1
+exec git rm file1
+exec git commit -m 'remove file1'
+
+# On 'branch' rename file1 to file2
+exec git checkout -b branch HEAD~1
+exec git mv file1 file2
+exec git commit -m 'rename file1 to file2'
+
+# Merge branch into main
+exec git checkout main
+! exec git merge branch
+exec git status --porcelain --branch 
+stdout '## main\nUA file2'
+
+gitstatus
+stdout '&{Porcelain:{NumModified:0 NumConflicts:1 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Merging IsClean:false}'
+! stderr .
+
+-- file1 --
+here is a file
+it is named file1
+at least it is, initially
+it has a bunch of contents
+so that it's clear that this is the same file
+even after we rename it.
