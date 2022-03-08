@@ -1,0 +1,35 @@
+exec git init
+exec git config user.email i@example.com
+exec git config user.name someone
+exec git checkout -b main
+
+exec git commit -m 'initial commit' --allow-empty
+
+exec git add file1
+exec git stash save 'a stash entry'
+
+exec git add file2
+exec git stash save 'a stash entry'
+
+exec git stash list
+#stdout 'stash@\{0\}: On main: a stash entry\nstash@\{0\}: On main: a stash entry'
+cmp stdout .stash
+
+exec git status --porcelain --branch
+stdout '## main'
+
+gitstatus
+stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:2 HEAD:[a-f0-9]{7} State:Default IsClean:false}'
+! stderr .
+
+-- file1 --
+super important file content
+
+-- file2 --
+super intersting file content
+
+-- .stash --
+stash@{0}: On main: a stash entry
+stash@{1}: On main: a stash entry
+-- .gitignore --
+.*
