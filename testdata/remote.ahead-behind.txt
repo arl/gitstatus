@@ -1,0 +1,46 @@
+exec git init --bare repo
+exec git clone repo clone
+
+cd clone
+exec git config user.email i@example.com
+exec git config user.name someone
+exec git checkout -b main 
+
+# Align remote with local then place ourselves 1 commit ahead of it
+exec git commit -m 'initial commit' --allow-empty
+exec git push --set-upstream origin main
+exec git commit -m 'another commit' --allow-empty
+
+exec git status --porcelain --branch
+stdout '## main\.\.\.origin/main \[ahead 1\]'
+
+gitstatus
+stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch:origin/main AheadCount:1 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:true}'
+! stderr .
+
+# Align remote with local then place ourselves 1 commit behind of it
+exec git push
+exec git reset --hard origin/main~1
+
+exec git status --porcelain --branch
+stdout '## main\.\.\.origin/main \[behind 1\]'
+
+gitstatus
+stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch:origin/main AheadCount:0 BehindCount:1} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:true}'
+! stderr .
+
+# Create another commit so as to be both 1 commit ahead and behind remote
+cp ../file1 .
+exec git add file1
+exec git commit -m 'another commit'
+exec git status --porcelain --branch
+stdout '## main\.\.\.origin/main \[ahead 1, behind 1\]'
+
+gitstatus
+stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch:origin/main AheadCount:1 BehindCount:1} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:true}'
+! stderr .
+
+-- file1 --
+dummy content
+-- file2 --
+another dummy content

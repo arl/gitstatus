@@ -28,6 +28,7 @@ type Status struct {
 
 	// IsClean reports whether the working tree is in a clean state (i.e empty
 	// staging area, no conflicts, no stash entries, no untracked files).
+	// TODO: should also add that we're not in detached state
 	IsClean bool
 }
 
@@ -125,7 +126,7 @@ func scanNilBytes(data []byte, atEOF bool) (advance int, token []byte, err error
 	return 0, nil, nil
 }
 
-var fileStatusRx = regexp.MustCompile(`^(##|[ MADRCU?!]{2}) .*$`)
+var fileStatusRx = regexp.MustCompile(`^(##|[ MADRCUT?!]{2}) .*$`)
 
 // parseStatus parses porcelain status and fills it with r.
 func (p *Porcelain) parseFrom(r io.Reader) error {
@@ -144,9 +145,15 @@ func (p *Porcelain) parseFrom(r io.Reader) error {
 		switch {
 		case first == '#' && second == '#':
 			err = p.parseHeader(line)
-		case first == 'U', second == 'U':
+		case first == 'U', second == 'U',
+			first == 'A' && second == 'A':
 			p.NumConflicts++
-		case first == 'M' && second == 'M':
+		case first == 'A' && second == 'M',
+			first == 'M' && second == 'M',
+			first == 'M' && second == 'D',
+			first == 'R' && second == 'M',
+			first == 'R' && second == 'D',
+			first == 'A' && second == 'T':
 			p.NumModified++
 			p.NumStaged++
 		case second == 'M', second == 'D':
