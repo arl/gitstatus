@@ -1,3 +1,7 @@
+# How to get AU status seems to depend on Git version, I didn't find a reliable
+# way to generate AU across Git versions.
+skip
+
 exec git init
 exec git config user.email i@example.com
 exec git config user.name someone
