@@ -1,0 +1,38 @@
+exec git init
+exec git config user.email i@example.com
+exec git config user.name someone
+exec git checkout -b main
+
+# On 'main', insert a new line in file
+exec git add file
+exec git commit -m 'initial commit'
+exec sed -i '2 a\line4' file
+exec git add file
+exec git commit -m 'line 4'
+
+# On 'branch', insert another, different line
+# and create a patch from it.
+exec git checkout HEAD~1
+exec git checkout -b branch
+exec sed -i '2 a\line3' file
+exec git add file
+exec git commit -m 'line 3'
+exec git format-patch HEAD~1
+
+# Go back to main and apply the patch
+exec git checkout main
+! exec git am 0001-line-3.patch
+
+exec git status --porcelain --branch
+stdout '## main'
+
+gitstatus
+stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:AM IsClean:true}'
+! stderr .
+
+-- file --
+line1
+line2
+-- .gitignore --
+0001-line-3.patch
+.gitignore

@@ -19,25 +19,33 @@ import (
 type Status struct {
 	Porcelain
 
-	NumStashed int // NumStashed is the number of stash entries.
+	// NumStashed is the number of stash entries.
+	NumStashed int
 
-	HEAD string // HEAD is the shortened SHA1 of current commit (empty in initial state).
+	// HEAD is the shortened SHA1 of current commit (empty in initial state).
+	HEAD string
 
 	// State indicates the state of the working tree.
 	State TreeState
 
 	// IsClean reports whether the working tree is in a clean state (i.e empty
-	// staging area, no conflicts, no stash entries, no untracked files).
-	// TODO: should also add that we're not in detached state
+	// staging area, no conflicts and no untracked files).
 	IsClean bool
 }
 
 // Porcelain holds the Git status variables extracted from calling git status --porcelain.
 type Porcelain struct {
-	NumModified  int // NumModified is the number of modified files.
-	NumConflicts int // NumConflicts is the number of unmerged files.
-	NumUntracked int // NumUntracked is the number of untracked files.
-	NumStaged    int // NumStaged is the number of staged files.
+	// NumModified is the number of modified files.
+	NumModified int
+
+	// NumConflicts is the number of unmerged files.
+	NumConflicts int
+
+	// NumUntracked is the number of untracked files.
+	NumUntracked int
+
+	// NumStaged is the number of staged files.
+	NumStaged int
 
 	// IsDetached reports whether HEAD is not associated to any branch
 	// (detached).
@@ -47,10 +55,17 @@ type Porcelain struct {
 	// commit have been performed yet).
 	IsInitial bool
 
-	LocalBranch  string // LocalBranch is the name of the local branch.
-	RemoteBranch string // RemoteBranch is the name of upstream remote branch (tracking).
-	AheadCount   int    // AheadCount reports by how many commits the local branch is ahead of its upstream branch.
-	BehindCount  int    // BehindCount reports by how many commits the local branch is behind its upstream branch.
+	// LocalBranch is the name of the local branch.
+	LocalBranch string
+
+	// RemoteBranch is the name of upstream remote branch (tracking).
+	RemoteBranch string
+
+	// AheadCount reports by how many commits the local branch is ahead of its upstream branch.
+	AheadCount int
+
+	// BehindCount reports by how many commits the local branch is behind its upstream branch.
+	BehindCount int
 }
 
 var (
@@ -59,47 +74,48 @@ var (
 )
 
 // New returns the Git Status of the current working directory.
-func New() (*Status, error) { return new(context.Background()) }
+func New() (*Status, error) { return newStatus(context.Background()) }
 
 // NewWithContext is likes New but includes a context.
 //
 // The provided context is used to stop retrieving git status if the context
 // becomes done before all calls to git have completed.
-func NewWithContext(ctx context.Context) (*Status, error) { return new(ctx) }
+func NewWithContext(ctx context.Context) (*Status, error) { return newStatus(ctx) }
 
-func new(ctx context.Context) (*Status, error) {
-	st := &Status{}
-
-	err := runAndParse(ctx, &st.Porcelain, "git", "status", "--porcelain", "--branch", "-z")
+func newStatus(ctx context.Context) (*Status, error) {
+	por := Porcelain{}
+	err := runAndParse(ctx, &por, "git", "status", "--porcelain=v1", "--branch", "-z")
 	if err != nil {
 		return nil, err
 	}
 
-	if st.IsInitial {
-		// the successive commands require at least one commit.
-		return st, nil
+	// All successive commands require at least one commit.
+	if por.IsInitial {
+		return &Status{Porcelain: por}, nil
 	}
 
-	// count stash entries
-	var lc linecount
-
-	err = runAndParse(ctx, &lc, "git", "stash", "list")
-	if err != nil {
+	// Count stash entries.
+	nstashed := linecount(0)
+	if err = runAndParse(ctx, &nstashed, "git", "stash", "list"); err != nil {
 		return nil, err
 	}
 
-	// sets other special flags and fields.
+	// Sets other special flags and fields.
 	var lines lines
-
 	err = runAndParse(ctx, &lines, "git", "rev-parse", "--git-dir", "--short", "HEAD")
 	if err != nil || len(lines) != 2 {
 		return nil, err
 	}
 
-	st.checkState(strings.TrimSpace(lines[0]))
-	st.HEAD = strings.TrimSpace(lines[1])
-	st.NumStashed = int(lc)
-	st.IsClean = st.NumStaged+st.NumConflicts+st.NumModified+st.NumStashed+st.NumUntracked == 0
+	isClean := por.NumStaged+por.NumConflicts+por.NumModified+por.NumUntracked == 0
+
+	st := &Status{
+		Porcelain:  por,
+		State:      treeStateFromDir(strings.TrimSpace(lines[0])),
+		HEAD:       strings.TrimSpace(lines[1]),
+		NumStashed: int(nstashed),
+		IsClean:    isClean,
+	}
 
 	return st, nil
 }
@@ -241,49 +257,10 @@ func (p *Porcelain) parseUpstream(s string) error {
 	return nil
 }
 
-// returns true if the path made of the given components exists and is readable.
+// Returns true if the path made of the given components exists and is readable.
 func exists(components ...string) bool {
 	_, err := os.Stat(path.Join(components...))
 	return err == nil
-}
-
-const (
-	gitDirRebaseMerge    = "rebase-merge"
-	gitDirRebaseApply    = "rebase-apply"
-	gitDirRebasing       = "rebasing"
-	gitDirApplying       = "applying"
-	gitDirMergeHead      = "MERGE_HEAD"
-	gitDirCherryPickHead = "CHERRY_PICK_HEAD"
-	gitDirRevertHead     = "REVERT_HEAD"
-	gitDirBisectLog      = "BISECT_LOG"
-)
-
-// checkState checks the current state of the working tree and sets at most one
-// special state flag accordingly.
-func (st *Status) checkState(gitdir string) {
-	st.State = Default
-	// from: git/contrib/completion/git-prompt.sh
-	switch {
-	case exists(gitdir, gitDirRebaseMerge):
-		st.State = Rebasing
-	case exists(gitdir, gitDirRebaseApply):
-		switch {
-		case exists(gitdir, gitDirRebaseApply, gitDirRebasing):
-			st.State = Rebasing
-		case exists(gitdir, gitDirRebaseApply, gitDirApplying):
-			st.State = AM
-		default:
-			st.State = AMRebase
-		}
-	case exists(gitdir, gitDirMergeHead):
-		st.State = Merging
-	case exists(gitdir, gitDirCherryPickHead):
-		st.State = CherryPicking
-	case exists(gitdir, gitDirRevertHead):
-		st.State = Reverting
-	case exists(gitdir, gitDirBisectLog):
-		st.State = Bisecting
-	}
 }
 
 type linecount int
