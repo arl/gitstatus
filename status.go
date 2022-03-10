@@ -75,16 +75,14 @@ func new(ctx context.Context) (*Status, error) {
 		return nil, err
 	}
 
+	// All successive commands require at least one commit.
 	if st.IsInitial {
-		// the successive commands require at least one commit.
 		return st, nil
 	}
 
-	// count stash entries
+	// Count stash entries.
 	var lc linecount
-
-	err = runAndParse(ctx, &lc, "git", "stash", "list")
-	if err != nil {
+	if err = runAndParse(ctx, &lc, "git", "stash", "list"); err != nil {
 		return nil, err
 	}
 
@@ -241,7 +239,7 @@ func (p *Porcelain) parseUpstream(s string) error {
 	return nil
 }
 
-// returns true if the path made of the given components exists and is readable.
+// Returns true if the path made of the given components exists and is readable.
 func exists(components ...string) bool {
 	_, err := os.Stat(path.Join(components...))
 	return err == nil
