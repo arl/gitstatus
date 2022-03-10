@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-//go:generate stringer -type=TreeState
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -type=TreeState
 
 // TreeState indicates the state of a Git working tree. Its zero-value is
 // NormalState.
