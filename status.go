@@ -59,18 +59,18 @@ var (
 )
 
 // New returns the Git Status of the current working directory.
-func New() (*Status, error) { return new(context.Background()) }
+func New() (*Status, error) { return newStatus(context.Background()) }
 
 // NewWithContext is likes New but includes a context.
 //
 // The provided context is used to stop retrieving git status if the context
 // becomes done before all calls to git have completed.
-func NewWithContext(ctx context.Context) (*Status, error) { return new(ctx) }
+func NewWithContext(ctx context.Context) (*Status, error) { return newStatus(ctx) }
 
-func new(ctx context.Context) (*Status, error) {
+func newStatus(ctx context.Context) (*Status, error) {
 	st := &Status{}
 
-	err := runAndParse(ctx, &st.Porcelain, "git", "status", "--porcelain", "--branch", "-z")
+	err := runAndParse(ctx, &st.Porcelain, "git", "status", "--porcelain=v1", "--branch", "-z")
 	if err != nil {
 		return nil, err
 	}
