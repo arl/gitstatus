@@ -1,0 +1,2 @@
+# Not sure how to put the working tree in am/rebase mode.
+skip
