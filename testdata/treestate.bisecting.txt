@@ -1,0 +1,16 @@
+exec git init
+exec git config user.email i@example.com
+exec git config user.name someone
+exec git checkout -b main
+
+exec git commit -m 'initial commit' --allow-empty
+exec git commit -m 'initial commit' --allow-empty
+
+exec git bisect start
+
+exec git status --porcelain --branch
+stdout '## main'
+
+gitstatus
+stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Bisecting IsClean:true}'
+! stderr .
