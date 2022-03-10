@@ -19,25 +19,33 @@ import (
 type Status struct {
 	Porcelain
 
-	NumStashed int // NumStashed is the number of stash entries.
+	// NumStashed is the number of stash entries.
+	NumStashed int
 
-	HEAD string // HEAD is the shortened SHA1 of current commit (empty in initial state).
+	// HEAD is the shortened SHA1 of current commit (empty in initial state).
+	HEAD string
 
 	// State indicates the state of the working tree.
 	State TreeState
 
 	// IsClean reports whether the working tree is in a clean state (i.e empty
-	// staging area, no conflicts, no stash entries, no untracked files).
-	// TODO: should also add that we're not in detached state
+	// staging area, no conflicts and no untracked files).
 	IsClean bool
 }
 
 // Porcelain holds the Git status variables extracted from calling git status --porcelain.
 type Porcelain struct {
-	NumModified  int // NumModified is the number of modified files.
-	NumConflicts int // NumConflicts is the number of unmerged files.
-	NumUntracked int // NumUntracked is the number of untracked files.
-	NumStaged    int // NumStaged is the number of staged files.
+	// NumModified is the number of modified files.
+	NumModified int
+
+	// NumConflicts is the number of unmerged files.
+	NumConflicts int
+
+	// NumUntracked is the number of untracked files.
+	NumUntracked int
+
+	// NumStaged is the number of staged files.
+	NumStaged int
 
 	// IsDetached reports whether HEAD is not associated to any branch
 	// (detached).
@@ -47,10 +55,17 @@ type Porcelain struct {
 	// commit have been performed yet).
 	IsInitial bool
 
-	LocalBranch  string // LocalBranch is the name of the local branch.
-	RemoteBranch string // RemoteBranch is the name of upstream remote branch (tracking).
-	AheadCount   int    // AheadCount reports by how many commits the local branch is ahead of its upstream branch.
-	BehindCount  int    // BehindCount reports by how many commits the local branch is behind its upstream branch.
+	// LocalBranch is the name of the local branch.
+	LocalBranch string
+
+	// RemoteBranch is the name of upstream remote branch (tracking).
+	RemoteBranch string
+
+	// AheadCount reports by how many commits the local branch is ahead of its upstream branch.
+	AheadCount int
+
+	// BehindCount reports by how many commits the local branch is behind its upstream branch.
+	BehindCount int
 }
 
 var (
