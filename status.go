@@ -92,7 +92,7 @@ func newStatus(ctx context.Context) (*Status, error) {
 		return nil, err
 	}
 
-	isClean := por.NumStaged+por.NumConflicts+por.NumModified+por.NumUntracked+int(nstashed) == 0
+	isClean := por.NumStaged+por.NumConflicts+por.NumModified+por.NumUntracked == 0
 
 	st := &Status{
 		Porcelain:  por,
