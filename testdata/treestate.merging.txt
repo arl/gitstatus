@@ -1,0 +1,2 @@
+# Merging state is tested with the multiple porcelain merge conflicts already
+skip

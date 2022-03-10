@@ -1,0 +1,31 @@
+exec git init
+exec git config user.email i@example.com
+exec git config user.name someone
+exec git checkout -b main
+
+# On 'main', add a second line
+exec git add file
+exec git commit -m 'initial commit'
+exec sed -i '2 a\line4' file
+exec git add file
+exec git commit -m 'line 4'
+
+# On 'branch', add a second, different line
+exec git checkout HEAD~1
+exec git checkout -b branch
+exec sed -i '2 a\line3' file
+exec git add file
+exec git commit -m 'line 3'
+
+# Merge main into branch
+! exec git rebase main
+exec git status --porcelain --branch
+stdout '## HEAD \(no branch\)\nUU file'
+
+gitstatus
+stdout '&{Porcelain:{NumModified:0 NumConflicts:1 NumUntracked:0 NumStaged:0 IsDetached:true IsInitial:false LocalBranch: RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Rebasing IsClean:false}'
+! stderr .
+
+-- file --
+line1
+line2
