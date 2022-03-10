@@ -68,36 +68,39 @@ func New() (*Status, error) { return newStatus(context.Background()) }
 func NewWithContext(ctx context.Context) (*Status, error) { return newStatus(ctx) }
 
 func newStatus(ctx context.Context) (*Status, error) {
-	st := &Status{}
-
-	err := runAndParse(ctx, &st.Porcelain, "git", "status", "--porcelain=v1", "--branch", "-z")
+	por := Porcelain{}
+	err := runAndParse(ctx, &por, "git", "status", "--porcelain=v1", "--branch", "-z")
 	if err != nil {
 		return nil, err
 	}
 
 	// All successive commands require at least one commit.
-	if st.IsInitial {
-		return st, nil
+	if por.IsInitial {
+		return &Status{Porcelain: por}, nil
 	}
 
 	// Count stash entries.
-	var lc linecount
-	if err = runAndParse(ctx, &lc, "git", "stash", "list"); err != nil {
+	nstashed := linecount(0)
+	if err = runAndParse(ctx, &nstashed, "git", "stash", "list"); err != nil {
 		return nil, err
 	}
 
-	// sets other special flags and fields.
+	// Sets other special flags and fields.
 	var lines lines
-
 	err = runAndParse(ctx, &lines, "git", "rev-parse", "--git-dir", "--short", "HEAD")
 	if err != nil || len(lines) != 2 {
 		return nil, err
 	}
 
-	st.checkState(strings.TrimSpace(lines[0]))
-	st.HEAD = strings.TrimSpace(lines[1])
-	st.NumStashed = int(lc)
-	st.IsClean = st.NumStaged+st.NumConflicts+st.NumModified+st.NumStashed+st.NumUntracked == 0
+	isClean := por.NumStaged+por.NumConflicts+por.NumModified+por.NumUntracked+int(nstashed) == 0
+
+	st := &Status{
+		Porcelain:  por,
+		State:      treeStateFromDir(strings.TrimSpace(lines[0])),
+		HEAD:       strings.TrimSpace(lines[1]),
+		NumStashed: int(nstashed),
+		IsClean:    isClean,
+	}
 
 	return st, nil
 }
@@ -243,45 +246,6 @@ func (p *Porcelain) parseUpstream(s string) error {
 func exists(components ...string) bool {
 	_, err := os.Stat(path.Join(components...))
 	return err == nil
-}
-
-const (
-	gitDirRebaseMerge    = "rebase-merge"
-	gitDirRebaseApply    = "rebase-apply"
-	gitDirRebasing       = "rebasing"
-	gitDirApplying       = "applying"
-	gitDirMergeHead      = "MERGE_HEAD"
-	gitDirCherryPickHead = "CHERRY_PICK_HEAD"
-	gitDirRevertHead     = "REVERT_HEAD"
-	gitDirBisectLog      = "BISECT_LOG"
-)
-
-// checkState checks the current state of the working tree and sets at most one
-// special state flag accordingly.
-func (st *Status) checkState(gitdir string) {
-	st.State = Default
-	// from: git/contrib/completion/git-prompt.sh
-	switch {
-	case exists(gitdir, gitDirRebaseMerge):
-		st.State = Rebasing
-	case exists(gitdir, gitDirRebaseApply):
-		switch {
-		case exists(gitdir, gitDirRebaseApply, gitDirRebasing):
-			st.State = Rebasing
-		case exists(gitdir, gitDirRebaseApply, gitDirApplying):
-			st.State = AM
-		default:
-			st.State = AMRebase
-		}
-	case exists(gitdir, gitDirMergeHead):
-		st.State = Merging
-	case exists(gitdir, gitDirCherryPickHead):
-		st.State = CherryPicking
-	case exists(gitdir, gitDirRevertHead):
-		st.State = Reverting
-	case exists(gitdir, gitDirBisectLog):
-		st.State = Bisecting
-	}
 }
 
 type linecount int

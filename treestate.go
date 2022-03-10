@@ -42,3 +42,44 @@ const (
 func (s TreeState) MarshalJSON() ([]byte, error) {
 	return json.Marshal(strings.ToLower(s.String()))
 }
+
+const (
+	gitDirRebaseMerge    = "rebase-merge"
+	gitDirRebaseApply    = "rebase-apply"
+	gitDirRebasing       = "rebasing"
+	gitDirApplying       = "applying"
+	gitDirMergeHead      = "MERGE_HEAD"
+	gitDirCherryPickHead = "CHERRY_PICK_HEAD"
+	gitDirRevertHead     = "REVERT_HEAD"
+	gitDirBisectLog      = "BISECT_LOG"
+)
+
+// setState checks the current state of the working tree and sets at most one
+// special state flag accordingly.
+func treeStateFromDir(gitdir string) TreeState {
+	ts := Default
+	// from: git/contrib/completion/git-prompt.sh
+	switch {
+	case exists(gitdir, gitDirRebaseMerge):
+		ts = Rebasing
+	case exists(gitdir, gitDirRebaseApply):
+		switch {
+		case exists(gitdir, gitDirRebaseApply, gitDirRebasing):
+			ts = Rebasing
+		case exists(gitdir, gitDirRebaseApply, gitDirApplying):
+			ts = AM
+		default:
+			ts = AMRebase
+		}
+	case exists(gitdir, gitDirMergeHead):
+		ts = Merging
+	case exists(gitdir, gitDirCherryPickHead):
+		ts = CherryPicking
+	case exists(gitdir, gitDirRevertHead):
+		ts = Reverting
+	case exists(gitdir, gitDirBisectLog):
+		ts = Bisecting
+	}
+
+	return ts
+}
