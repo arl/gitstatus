@@ -9,8 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path"
 	"regexp"
 	"strings"
 )
@@ -255,12 +253,6 @@ func (p *Porcelain) parseUpstream(s string) error {
 		return fmt.Errorf("%v: %w", errParseAheadBehind, err)
 	}
 	return nil
-}
-
-// Returns true if the path made of the given components exists and is readable.
-func exists(components ...string) bool {
-	_, err := os.Stat(path.Join(components...))
-	return err == nil
 }
 
 type linecount int
