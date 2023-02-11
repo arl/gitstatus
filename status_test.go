@@ -316,3 +316,31 @@ func TestLineCount(t *testing.T) {
 		})
 	}
 }
+
+func Test_extractShortStat(t *testing.T) {
+	tests := []struct {
+		line       string
+		insertions int
+		deletions  int
+	}{
+		{line: `2 files changed, 55 insertions(+), 1 deletion(-)`, insertions: 55, deletions: 1},
+		{line: `2 files changed, 55 insertions(+), 3 deletions(-)`, insertions: 55, deletions: 3},
+		{line: `2 files changed, 1 insertion(+), 1 deletion(-)`, insertions: 1, deletions: 1},
+		{line: `2 files changed, 1 insertion(+), 23 deletions(-)`, insertions: 1, deletions: 23},
+		{line: `1 file changed, 14 insertions(+)`, insertions: 14},
+		{line: `1 file changed, 1 insertion(+)`, insertions: 1},
+		{line: `1 file changed, 53 deletions(+)`, deletions: 53},
+		{line: `1 file changed, 1 deletion(+)`, deletions: 1},
+		{line: ``, insertions: 0, deletions: 0},
+	}
+
+	for _, tt := range tests {
+		insertions, deletions, err := extractShortStat([]byte(tt.line))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tt.insertions != insertions || tt.deletions != deletions {
+			t.Errorf("git diff --shortstat\n%s\n got +%d/-%d want +%d/-%d", tt.line, insertions, deletions, tt.insertions, tt.deletions)
+		}
+	}
+}
