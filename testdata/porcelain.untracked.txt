@@ -7,8 +7,8 @@ exec git commit -m 'initial commit' --allow-empty
 exec git status --porcelain --branch
 stdout '## main\n\?\? file'
 
+env WANT_STATUS='NumUntracked=1 LocalBranch=main HEAD=[a-f0-9]{7} State=Default'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:1 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:false}'
 ! stderr .
 
 -- file --

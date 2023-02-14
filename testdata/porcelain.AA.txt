@@ -22,8 +22,8 @@ exec git commit -m 'add line2 into file'
 exec git status --porcelain --branch
 stdout '## branch\nAA file'
 
+env WANT_STATUS='NumConflicts=1 LocalBranch=branch HEAD=[a-f0-9]{7} State=Merging Insertions=4'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:1 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:branch RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Merging IsClean:false}'
 ! stderr .
 
 -- file1 --

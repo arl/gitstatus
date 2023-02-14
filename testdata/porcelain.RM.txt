@@ -11,8 +11,8 @@ exec sed -i 1d newfile
 exec git status --porcelain --branch
 stdout '## main\nRM file -> newfile'
 
+env WANT_STATUS='NumModified=1 NumStaged=1 LocalBranch=main HEAD=[a-f0-9]{7} State=Default Deletions=1'
 gitstatus
-stdout '&{Porcelain:{NumModified:1 NumConflicts:0 NumUntracked:0 NumStaged:1 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:false}'
 ! stderr .
 
 -- file --

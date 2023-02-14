@@ -10,8 +10,8 @@ exec git mv file newfile
 exec git status --porcelain --branch
 stdout '## main\nR  file'
 
+env WANT_STATUS='NumStaged=1 LocalBranch=main HEAD=[a-f0-9]{7} State=Default'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:1 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:false}'
 ! stderr .
 
 -- file --

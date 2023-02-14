@@ -14,8 +14,8 @@ exec git commit -m 'another commit' --allow-empty
 exec git status --porcelain --branch
 stdout '## main\.\.\.origin/main \[ahead 1\]'
 
+env WANT_STATUS='LocalBranch=main RemoteBranch=origin/main AheadCount=1 HEAD=[a-f0-9]{7} State=Default IsClean=true'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch:origin/main AheadCount:1 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:true}'
 ! stderr .
 
 # Align remote with local then place ourselves 1 commit behind of it
@@ -25,8 +25,8 @@ exec git reset --hard origin/main~1
 exec git status --porcelain --branch
 stdout '## main\.\.\.origin/main \[behind 1\]'
 
+env WANT_STATUS='LocalBranch=main RemoteBranch=origin/main BehindCount=1 HEAD=[a-f0-9]{7} State=Default IsClean=true'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch:origin/main AheadCount:0 BehindCount:1} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:true}'
 ! stderr .
 
 # Create another commit so as to be both 1 commit ahead and behind remote
@@ -36,8 +36,8 @@ exec git commit -m 'another commit'
 exec git status --porcelain --branch
 stdout '## main\.\.\.origin/main \[ahead 1, behind 1\]'
 
+env WANT_STATUS='LocalBranch=main RemoteBranch=origin/main AheadCount=1 BehindCount=1 HEAD=[a-f0-9]{7} State=Default IsClean=true'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch:origin/main AheadCount:1 BehindCount:1} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:true}'
 ! stderr .
 
 -- file1 --

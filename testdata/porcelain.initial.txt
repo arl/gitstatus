@@ -6,6 +6,6 @@ exec git checkout -b main
 exec git status --porcelain --branch
 stdout '## No commits yet on main\n'
 
+env WANT_STATUS='IsInitial=true LocalBranch=main State=Default'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:true LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD: State:Default IsClean:false}'
 ! stderr .

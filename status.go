@@ -9,9 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path"
+	"io/ioutil"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -31,6 +31,12 @@ type Status struct {
 	// IsClean reports whether the working tree is in a clean state (i.e empty
 	// staging area, no conflicts and no untracked files).
 	IsClean bool
+
+	// Insertions is the count of inserted lines in the staging area.
+	Insertions int
+
+	// Deletions is the count of deleted lines in the staging area.
+	Deletions int
 }
 
 // Porcelain holds the Git status variables extracted from calling git status --porcelain.
@@ -89,6 +95,12 @@ func newStatus(ctx context.Context) (*Status, error) {
 		return nil, err
 	}
 
+	stats := stats{}
+	err = runAndParse(ctx, &stats, "git", "diff", "--shortstat")
+	if err != nil {
+		return nil, err
+	}
+
 	// All successive commands require at least one commit.
 	if por.IsInitial {
 		return &Status{Porcelain: por}, nil
@@ -115,6 +127,8 @@ func newStatus(ctx context.Context) (*Status, error) {
 		HEAD:       strings.TrimSpace(lines[1]),
 		NumStashed: int(nstashed),
 		IsClean:    isClean,
+		Insertions: stats.insertions,
+		Deletions:  stats.deletions,
 	}
 
 	return st, nil
@@ -257,12 +271,6 @@ func (p *Porcelain) parseUpstream(s string) error {
 	return nil
 }
 
-// Returns true if the path made of the given components exists and is readable.
-func exists(components ...string) bool {
-	_, err := os.Stat(path.Join(components...))
-	return err == nil
-}
-
 type linecount int
 
 // parseFrom counts the number of lines by reading from r.
@@ -289,4 +297,42 @@ func (l *lines) parseFrom(r io.Reader) error {
 	}
 
 	return scan.Err()
+}
+
+var shortStatRx = regexp.MustCompile(`.* (\d+) insertion.* (\d+) deletion.*`)
+
+type stats struct {
+	insertions int
+	deletions  int
+}
+
+// parseStatus parses porcelain status and fills it with r.
+func (s *stats) parseFrom(r io.Reader) error {
+	b, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	s.insertions, s.deletions, err = extractShortStat(b)
+	return err
+}
+
+func extractShortStat(out []byte) (insertions, deletions int, err error) {
+	splits := bytes.Split(out, []byte{','})
+	for j := range splits {
+		line := bytes.TrimSpace(splits[j])
+		if pos := bytes.Index(line, []byte("insertion")); pos != -1 {
+			insertions, err = strconv.Atoi(string(bytes.TrimSpace(line[:pos])))
+			if err != nil {
+				return
+			}
+		} else if pos := bytes.Index(line, []byte("deletion")); pos != -1 {
+			deletions, err = strconv.Atoi(string(bytes.TrimSpace(line[:pos])))
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	return
 }

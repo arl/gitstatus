@@ -10,6 +10,6 @@ exec git checkout HEAD~1
 exec git status --porcelain --branch
 stdout '## HEAD \(no branch\)'
 
+env WANT_STATUS='IsDetached=true HEAD=[a-f0-9]{7} State=Default IsClean=true'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:true IsInitial:false LocalBranch: RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Default IsClean:true}'
 ! stderr .

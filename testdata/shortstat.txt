@@ -1,0 +1,25 @@
+exec git init
+exec git config user.email i@example.com
+exec git config user.name someone
+exec git checkout -b main
+
+exec git add file
+exec git commit -m 'commit'
+exec sed -i 3d file
+
+exec sed -i '4 anewline' file
+exec cat file
+
+exec git diff --shortstat
+stdout '1 file changed, 1 insertion\(\+\), 1 deletion\(-\)'
+
+env WANT_STATUS='NumModified=1 LocalBranch=main HEAD=[a-f0-9]{7} State=Default Insertions=1 Deletions=1'
+gitstatus
+! stderr .
+
+-- file --
+line1
+
+line2
+
+line3
