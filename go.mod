@@ -12,5 +12,4 @@ require (
 	github.com/davecgh/go-spew v1.1.0 // indirect
 	github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	gopkg.in/errgo.v2 v2.1.0 // indirect
 )
