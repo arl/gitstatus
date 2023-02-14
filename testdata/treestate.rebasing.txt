@@ -22,8 +22,8 @@ exec git commit -m 'line 3'
 exec git status --porcelain --branch
 stdout '## HEAD \(no branch\)\nUU file'
 
+env WANT_STATUS='NumConflicts=1 IsDetached=true HEAD=[a-f0-9]{7} State=Rebasing Insertions=4'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:1 NumUntracked:0 NumStaged:0 IsDetached:true IsInitial:false LocalBranch: RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Rebasing IsClean:false}'
 ! stderr .
 
 -- file --

@@ -3,7 +3,7 @@ module github.com/arl/gitstatus
 go 1.18
 
 require (
-	github.com/rogpeppe/go-internal v1.8.1
+	github.com/rogpeppe/go-internal v1.9.0
 	github.com/stretchr/testify v1.3.0
 	golang.org/x/exp v0.0.0-20230210204819-062eb4c674ab
 )

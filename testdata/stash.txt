@@ -12,14 +12,13 @@ exec git add file2
 exec git stash save 'a stash entry'
 
 exec git stash list
-#stdout 'stash@\{0\}: On main: a stash entry\nstash@\{0\}: On main: a stash entry'
 cmp stdout .stash
 
 exec git status --porcelain --branch
 stdout '## main'
 
+env WANT_STATUS='LocalBranch=main NumStashed=2 HEAD=[a-f0-9]{7} State=Default IsClean=true'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:2 HEAD:[a-f0-9]{7} State:Default IsClean:true}'
 ! stderr .
 
 -- file1 --

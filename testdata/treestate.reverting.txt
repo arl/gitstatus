@@ -18,8 +18,8 @@ exec git commit -m 'modifies file'
 exec git status --porcelain --branch
 stdout '## main\nUD file'
 
+env WANT_STATUS='NumConflicts=1 LocalBranch=main HEAD=[a-f0-9]{7} State=Reverting'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:1 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:Reverting IsClean:false}'
 ! stderr .
 
 -- file --

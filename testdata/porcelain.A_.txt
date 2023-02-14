@@ -8,8 +8,8 @@ exec git add file
 exec git status --porcelain --branch
 stdout '## No commits yet on .+\nA  file'
 
+env WANT_STATUS='NumStaged=1 IsInitial=true LocalBranch=main State=Default'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:1 IsDetached:false IsInitial:true LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD: State:Default IsClean:false}'
 ! stderr .
 
 -- file --

@@ -13,8 +13,7 @@ exec git commit -m 'add file'
 exec git status --porcelain --branch
 stdout '## main'
 
+env WANT_STATUS='LocalBranch=main HEAD=[a-f0-9]{7} State=CherryPicking IsClean=true'
 gitstatus
-stdout '&{Porcelain:{NumModified:0 NumConflicts:0 NumUntracked:0 NumStaged:0 IsDetached:false IsInitial:false LocalBranch:main RemoteBranch: AheadCount:0 BehindCount:0} NumStashed:0 HEAD:[a-f0-9]{7} State:CherryPicking IsClean:true}'
-! stderr .
 
 -- file --

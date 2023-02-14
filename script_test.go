@@ -6,6 +6,7 @@ package gitstatus
 import (
 	_ "embed"
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"regexp"
@@ -17,51 +18,55 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testscript.RunMain(m, nil))
+	os.Exit(testscript.RunMain(m, map[string]func() int{"gitstatus": gitstatus}))
 }
 
 func TestScripts(t *testing.T) {
 	testscript.Run(t, testscript.Params{
-		Dir: "testdata",
-		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
-			"gitstatus": gitstatus,
-		},
+		Dir:      "testdata",
+		TestWork: true,
 	})
 }
 
-// runGitStatus creates a Status object and print its string representation on stdout.
-// func gitstatus() int
-func gitstatus(ts *testscript.TestScript, neg bool, args []string) {
-	// Change working directory to that of the script before reading git status.
-	// cwd, err := os.Getwd()
-	// ts.Check(err)
-	ts.Check(os.Chdir(ts.MkAbs("")))
+// gitstatus creates a Status object based on the current directory and compares
+// it with the git status representation in WANT_STATUS environment variable.
+func gitstatus() int {
+	log.SetPrefix("Error(gitstatus): ")
+	log.SetFlags(0)
 
 	status, err := New()
 	if err != nil {
-		ts.Fatalf("gitstatus error, couldn't create Status object: %v", err)
-		return
+		log.Printf("can't create Status object: %v", err)
+		return 1
 	}
 
 	// Convert args in a 'field name' to 'field value' map.
+	kvs := strings.Fields(os.Getenv("WANT_STATUS"))
 	fvalues := make(map[string]*regexp.Regexp)
-	for _, kv := range args {
+	for _, kv := range kvs {
 		fname, fval, ok := strings.Cut(kv, "=")
 		if !ok {
-			ts.Fatalf("gitstatus: malformed field name key=value pair: %s", kv)
+			log.Printf("malformed WANT_STATUS key=value pair: %s", kv)
+			return 1
 		}
 		if _, ok := fvalues[fname]; ok {
-			ts.Fatalf("gitstatus: duplicated field name %s", fname)
+			log.Printf("duplicate field name in WANT_STATUS: %s", kv)
+			return 1
 		}
 		rx, err := regexp.Compile(fval)
 		if err != nil {
-			ts.Fatalf("gitstatus: bad regex for field %s: %v", fname, err)
+			log.Printf("bad regex for field %s: %v", fname, err)
+			return 1
 		}
 
 		fvalues[fname] = rx
 	}
 
-	checkStatusFields(ts, status, fvalues)
+	if err := checkStatusFields(status, fvalues); err != nil {
+		log.Printf("failed field check\n%v", err)
+		return 1
+	}
+	return 0
 }
 
 type fieldInfo struct {
@@ -96,35 +101,35 @@ func fieldInfos(s any) []fieldInfo {
 	return fields
 }
 
-func checkStatusFields(ts *testscript.TestScript, s *Status, fieldMatches map[string]*regexp.Regexp) bool {
-	// Keep track of matched fields.
+func checkStatusFields(status *Status, matches map[string]*regexp.Regexp) error {
+	// Keep track of the fields we want to match, so we can check we've actually
+	// matched them all.
 	set := make(map[string]struct{})
-	for fname := range fieldMatches {
+	for fname := range matches {
 		set[fname] = struct{}{}
 	}
 
-	for _, f := range fieldInfos(*s) {
-		v, ok := fieldMatches[f.name]
+	// Loop on all fields of the given Status instance.
+	for _, f := range fieldInfos(*status) {
+		delete(set, f.name)
+		rx, ok := matches[f.name]
 		if !ok {
 			// The field was not specified so it has to be the zero value.
 			if !f.val.IsZero() {
-				ts.Fatalf("got Status.%s = %q want <zero value>", f.name, f.val)
+				return fmt.Errorf("got Status.%s = %v want %v (zero value)", f.name, f.val, reflect.Zero(f.val.Type()))
 			}
-			delete(set, f.name)
 			continue
 		}
-
 		// Match field value with regex provided in test script.
 		sval := fmt.Sprintf("%v", f.val)
-		if !v.MatchString(sval) {
-			ts.Fatalf("got Status.%s = %s, doesn't match regular expression %s", f.name, sval, v)
+		if !rx.MatchString(sval) {
+			return fmt.Errorf("got Status.%s = %s, doesn't match regular expression %s", f.name, sval, rx)
 		}
-		delete(set, f.name)
 	}
 
 	if len(set) != 0 {
-		ts.Fatalf("not all Status fields were matched, remaining %+v", maps.Keys(set))
+		return fmt.Errorf("not all Status fields were matched, remaining %+v", maps.Keys(set))
 	}
 
-	return true
+	return nil
 }
