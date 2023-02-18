@@ -2,6 +2,8 @@ package gitstatus
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path"
 	"strings"
@@ -79,5 +81,5 @@ func treeStateFromDir(gitdir string) TreeState {
 // Returns true if the path made of the given components exists and is readable.
 func exists(components ...string) bool {
 	_, err := os.Stat(path.Join(components...))
-	return err == nil
+	return !errors.Is(err, fs.ErrNotExist)
 }
