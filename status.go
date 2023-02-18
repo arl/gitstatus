@@ -299,8 +299,6 @@ func (l *lines) parseFrom(r io.Reader) error {
 	return scan.Err()
 }
 
-var shortStatRx = regexp.MustCompile(`.* (\d+) insertion.* (\d+) deletion.*`)
-
 type stats struct {
 	insertions int
 	deletions  int
@@ -334,5 +332,5 @@ func extractShortStat(out []byte) (insertions, deletions int, err error) {
 		}
 	}
 
-	return
+	return insertions, deletions, err
 }
