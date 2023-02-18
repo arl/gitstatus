@@ -60,7 +60,8 @@ const (
 // special state flag accordingly.
 func treeStateFromDir(gitdir string) TreeState {
 	ts := Default
-	// from: git/contrib/completion/git-prompt.sh
+	// Converted from:
+	// https://github.com/git/git/blob/d9d677b2d8cc5f70499db04e633ba7a400f64cbf/contrib/completion/git-prompt.sh#L452-L475
 	switch {
 	case exists(gitdir, gitDirRebaseMerge):
 		ts = Rebasing
