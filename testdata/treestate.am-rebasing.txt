@@ -1,2 +1,44 @@
-# Not sure how to put the working tree in am/rebase mode.
-skip
+exec git init
+exec git config user.email i@example.com
+exec git config user.name someone
+exec git checkout -b main
+
+# Create initial commit
+exec git add file
+exec git commit -m 'initial commit'
+
+# Add a line and commit
+exec sed -i '2 a\line3' file
+exec git add file
+exec git commit -m 'add line3'
+
+# Create a patch from the last commit
+exec git format-patch HEAD~1
+
+# Reset to before the last commit and make a conflicting change
+exec git reset --hard HEAD~1
+exec sed -i '2 a\lineX' file
+exec git add file
+exec git commit -m 'conflicting change'
+
+# Try to apply the patch (this will fail and create rebase-apply directory)
+! exec git am 0001-add-line3.patch
+
+# Remove the 'applying' file to put the repository in AMRebase state
+# This simulates the specific condition where rebase-apply exists but
+# neither 'applying' nor 'rebasing' marker files are present
+exec rm .git/rebase-apply/applying
+
+exec git status --porcelain --branch
+stdout '## main'
+
+env WANT_STATUS='LocalBranch=main HEAD=[a-f0-9]{7} State=AMRebase IsClean=true'
+gitstatus
+! stderr .
+
+-- file --
+line1
+line2
+-- .gitignore --
+0001-add-line3.patch
+.gitignore
