@@ -7,38 +7,34 @@ exec git checkout -b main
 exec git add file
 exec git commit -m 'initial commit'
 
-# Add a line and commit
+# Create a feature branch with changes
+exec git checkout -b feature
 exec sed -i '2 a\line3' file
 exec git add file
 exec git commit -m 'add line3'
 
-# Create a patch from the last commit
-exec git format-patch HEAD~1
-
-# Reset to before the last commit and make a conflicting change
-exec git reset --hard HEAD~1
+# Go back to main and create a conflicting change
+exec git checkout main
 exec sed -i '2 a\lineX' file
 exec git add file
 exec git commit -m 'conflicting change'
 
-# Try to apply the patch (this will fail and create rebase-apply directory)
-! exec git am 0001-add-line3.patch
+# Switch back to feature and try to rebase using apply backend
+exec git checkout feature
+! exec git rebase --apply main
 
-# Remove the 'applying' file to put the repository in AMRebase state
-# This simulates the specific condition where rebase-apply exists but
-# neither 'applying' nor 'rebasing' marker files are present
-exec rm .git/rebase-apply/applying
+# Remove the 'rebasing' file to simulate an interrupted rebase state
+# This can happen due to filesystem corruption, power outages, or 
+# incomplete Git operations that leave the repository in an inconsistent state
+exec rm .git/rebase-apply/rebasing
 
 exec git status --porcelain --branch
-stdout '## main'
+stdout '## HEAD \(no branch\)\nUU file'
 
-env WANT_STATUS='LocalBranch=main HEAD=[a-f0-9]{7} State=AMRebase IsClean=true'
+env WANT_STATUS='NumConflicts=1 IsDetached=true LocalBranch= HEAD=[a-f0-9]{7} State=AMRebase IsClean=false Insertions=4'
 gitstatus
 ! stderr .
 
 -- file --
 line1
 line2
--- .gitignore --
-0001-add-line3.patch
-.gitignore
