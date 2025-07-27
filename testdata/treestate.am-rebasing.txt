@@ -1,2 +1,40 @@
-# Not sure how to put the working tree in am/rebase mode.
-skip
+exec git init
+exec git config user.email i@example.com
+exec git config user.name someone
+exec git checkout -b main
+
+# Create initial commit
+exec git add file
+exec git commit -m 'initial commit'
+
+# Create a feature branch with changes
+exec git checkout -b feature
+exec sed -i '2 a\line3' file
+exec git add file
+exec git commit -m 'add line3'
+
+# Go back to main and create a conflicting change
+exec git checkout main
+exec sed -i '2 a\lineX' file
+exec git add file
+exec git commit -m 'conflicting change'
+
+# Switch back to feature and try to rebase using apply backend
+exec git checkout feature
+! exec git rebase --apply main
+
+# Remove the 'rebasing' file to simulate an interrupted rebase state
+# This can happen due to filesystem corruption, power outages, or 
+# incomplete Git operations that leave the repository in an inconsistent state
+exec rm .git/rebase-apply/rebasing
+
+exec git status --porcelain --branch
+stdout '## HEAD \(no branch\)\nUU file'
+
+env WANT_STATUS='NumConflicts=1 IsDetached=true LocalBranch= HEAD=[a-f0-9]{7} State=AMRebase IsClean=false Insertions=4'
+gitstatus
+! stderr .
+
+-- file --
+line1
+line2
