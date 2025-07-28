@@ -1,5 +1,4 @@
-// Package gitstatus provides information about the git status of a working
-// tree.
+// Package gitstatus provides information about the git status of a working tree.
 package gitstatus
 
 import (
@@ -9,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
@@ -306,7 +304,7 @@ type stats struct {
 
 // parseStatus parses porcelain status and fills it with r.
 func (s *stats) parseFrom(r io.Reader) error {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}
