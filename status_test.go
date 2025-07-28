@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func porcelainNZT(lines ...string) []byte {
@@ -96,9 +94,17 @@ func TestStatusParseHeaders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Porcelain{}
-			assert.Equal(t, tt.wantErr, got.parseFrom(bytes.NewReader(tt.out)))
-			assert.Equal(t, tt.want, *got)
+			var p Porcelain
+			err := p.parseFrom(bytes.NewReader(tt.out))
+			if err != tt.wantErr {
+				t.Errorf("parseFrom() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if tt.want != p {
+				t.Errorf("parseFrom() = %v, want %v", p, tt.want)
+			}
 		})
 	}
 }
@@ -154,9 +160,17 @@ func TestStatusParseModified(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Porcelain{}
-			assert.Equal(t, tt.wantErr, got.parseFrom(bytes.NewReader(tt.out)))
-			assert.Equal(t, tt.want, *got)
+			var p Porcelain
+			err := p.parseFrom(bytes.NewReader(tt.out))
+			if err != tt.wantErr {
+				t.Errorf("parseFrom() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if tt.want != p {
+				t.Errorf("parseFrom() = %v, want %v", p, tt.want)
+			}
 		})
 	}
 }
@@ -205,9 +219,17 @@ func TestStatusParseConflicts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Porcelain{}
-			assert.Equal(t, tt.wantErr, got.parseFrom(bytes.NewReader(tt.out)))
-			assert.Equal(t, tt.want, *got)
+			var p Porcelain
+			err := p.parseFrom(bytes.NewReader(tt.out))
+			if err != tt.wantErr {
+				t.Errorf("parseFrom() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if tt.want != p {
+				t.Errorf("parseFrom() = %v, want %v", p, tt.want)
+			}
 		})
 	}
 }
@@ -236,9 +258,17 @@ func TestStatusParseUntracked(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Porcelain{}
-			assert.Equal(t, tt.wantErr, got.parseFrom(bytes.NewReader(tt.out)))
-			assert.Equal(t, tt.want, *got)
+			var p Porcelain
+			err := p.parseFrom(bytes.NewReader(tt.out))
+			if err != tt.wantErr {
+				t.Errorf("parseFrom() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if tt.want != p {
+				t.Errorf("parseFrom() = %v, want %v", p, tt.want)
+			}
 		})
 	}
 }
@@ -272,9 +302,17 @@ func TestStatusParseStaged(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Porcelain{}
-			assert.Equal(t, tt.wantErr, got.parseFrom(bytes.NewReader(tt.out)))
-			assert.Equal(t, tt.want, *got)
+			var p Porcelain
+			err := p.parseFrom(bytes.NewReader(tt.out))
+			if err != tt.wantErr {
+				t.Errorf("parseFrom() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if tt.want != p {
+				t.Errorf("parseFrom() = %v, want %v", p, tt.want)
+			}
 		})
 	}
 }
@@ -291,8 +329,11 @@ func TestStatusParseMalformed(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := &Porcelain{}
-			assert.Error(t, got.parseFrom(bytes.NewReader(tt.out)))
+			var p Porcelain
+			err := p.parseFrom(bytes.NewReader(tt.out))
+			if err == nil {
+				t.Errorf("parseFrom() error = nil, want an error")
+			}
 		})
 	}
 }
@@ -308,11 +349,16 @@ func TestLineCount(t *testing.T) {
 		{input: "\r\n", nlines: 1},
 		{input: "\r\n\r\n", nlines: 2},
 	}
-	for _, tc := range tests {
+	for _, tt := range tests {
 		t.Run(t.Name(), func(t *testing.T) {
 			var lc linecount
-			assert.NoError(t, lc.parseFrom(bytes.NewBufferString(tc.input)))
-			assert.EqualValues(t, tc.nlines, lc)
+			err := lc.parseFrom(strings.NewReader(tt.input))
+			if err != nil {
+				t.Errorf("parseFrom() failed with error = %v", err)
+			}
+			if tt.nlines != int64(lc) {
+				t.Errorf("parseFrom() = %v, want %v", lc, tt.nlines)
+			}
 		})
 	}
 }
